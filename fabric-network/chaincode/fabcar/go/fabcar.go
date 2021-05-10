@@ -24,18 +24,7 @@ type HttpMessage struct {
 	Data interface{} `json:"data"`
 	Uuid string `json:"uuid"`
 	Epochs int `json:"epochs"`
-}
-
-type HttpAccAlphaMessage struct {
-	Message string `json:"message"`
-	Data AccAlpha `json:"data"`
-	Uuid string `json:"uuid"`
-	Epochs int `json:"epochs"`
-}
-
-type AccAlpha struct {
-	AccTest []float64 `json:"acc_test"`
-	Alpha []float64 `json:"alpha"`
+	IsSync bool `json:"is_sync"`
 }
 
 func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) error {
@@ -111,14 +100,16 @@ func (s *SmartContract) UploadGlobalModel(ctx contractapi.TransactionContextInte
 		return fmt.Errorf("failed to save global model hash into state. %s", err.Error())
 	}
 
-	// trigger the next step
+	// if it is sync FL, trigger the next step
 	// let each node download the latest global model
-	sendMsg := new(HttpMessage)
-	sendMsg.Message = "global_model_update"
-	sendMsg.Uuid = myuuid
-	sendMsg.Epochs = recMsg.Epochs
-	sendMsgAsBytes, _ := json.Marshal(sendMsg)
-	go sendPostRequest(sendMsgAsBytes, "GLOBAL_MODEL_UPDATE")
+	if recMsg.IsSync == true {
+		sendMsg := new(HttpMessage)
+		sendMsg.Message = "global_model_update"
+		sendMsg.Uuid = myuuid
+		sendMsg.Epochs = recMsg.Epochs
+		sendMsgAsBytes, _ := json.Marshal(sendMsg)
+		go sendPostRequest(sendMsgAsBytes, "GLOBAL_MODEL_UPDATE")
+	}
 	return nil
 }
 
@@ -134,6 +125,22 @@ func (s *SmartContract) PrepareNextRound(ctx contractapi.TransactionContextInter
 	sendMsgAsBytes, _ := json.Marshal(recMsg)
 
 	go sendPostRequest(sendMsgAsBytes, "PREPARE")
+
+	return nil
+}
+
+// ShutdownPython Shutdown the python process
+func (s *SmartContract) ShutdownPython(ctx contractapi.TransactionContextInterface, receiveMsg string) error {
+	fmt.Println("[SHUTDOWN PYTHON MSG] Received")
+	receiveMsgBytes := []byte(receiveMsg)
+	recMsg := new(HttpMessage)
+	_ = json.Unmarshal(receiveMsgBytes, recMsg)
+
+	recMsg.Uuid = myuuid
+	recMsg.Message = "shutdown"
+	sendMsgAsBytes, _ := json.Marshal(recMsg)
+
+	go sendPostRequest(sendMsgAsBytes, "SHUTDOWN")
 
 	return nil
 }

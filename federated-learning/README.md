@@ -8,13 +8,13 @@ Note: The scripts will be slow without the implementation of parallel computing.
 ## Run
 
 The MLP and CNN models are produced by:
-> python [main_nn.py](main_nn.py)
+> python [main_nn.py](local_train.py)
 
 The testing accuracy of MLP on MINST: 92.14% (10 epochs training) with the learning rate of 0.01.
 The testing accuracy of CNN on MINST: 98.37% (10 epochs training) with the learning rate of 0.01.
 
 Federated learning with MLP and CNN is produced by:
-> python [main_fed.py](main_fed.py)
+> python [main_fed.py](fed_avg.py)
 
 See the arguments in [options.py](utils/options.py). 
 

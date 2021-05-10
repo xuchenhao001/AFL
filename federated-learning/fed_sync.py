@@ -10,16 +10,15 @@ import copy
 import numpy as np
 import threading
 import torch
-import utils.util
-
 from tornado import httpclient, ioloop, web, gen, httpserver
 
+import utils.util
 from utils.options import args_parser
 from models.Update import LocalUpdate
 from models.Fed import FedAvg
 
 logging.setLoggerClass(utils.util.ColoredLogger)
-logger = logging.getLogger("sync_fed")
+logger = logging.getLogger("fed_sync")
 
 np.random.seed(0)
 torch.random.manual_seed(0)
@@ -34,7 +33,6 @@ fed_listen_port = 8888
 # NOT TO TOUCH VARIABLES BELOW
 blockchain_server_url = ""
 trigger_url = ""
-total_epochs = 0  # epochs must be an integer
 args = None
 net_glob = None
 dataset_train = None
@@ -45,7 +43,6 @@ test_users = []
 skew_users = []
 next_round_count_num = 0
 peer_address_list = []
-my_global_model_tensor = {}
 global_model_hash = ""
 train_count_num = 0
 g_start_time = {}
@@ -90,7 +87,6 @@ async def http_client_post(url, body_data):
 # STEP #1
 def init():
     global args
-    global total_epochs
     global net_glob
     global dataset_train
     global dataset_test
@@ -114,7 +110,6 @@ def init():
     # parse args
     args = args_parser()
     args.device = torch.device('cuda:{}'.format(args.gpu) if torch.cuda.is_available() and args.gpu != -1 else 'cpu')
-    total_epochs = args.epochs
     logger.setLevel(args.log_level)
     # parse participant number
     args.num_users = len(peer_address_list)
@@ -148,7 +143,8 @@ async def start():
             'user_number': args.num_users,
             'do_elect': True
         },
-        'epochs': total_epochs
+        'epochs': args.epochs,
+        'is_sync': True
     }
     await http_client_post(blockchain_server_url, body_data)
 
@@ -159,7 +155,7 @@ async def train(uuid, epochs, start_time):
 
     # calculate initial model accuracy, record it as the bench mark.
     idx = int(uuid) - 1
-    if epochs == total_epochs:
+    if epochs == args.epochs:
         net_glob.eval()
         acc_local, acc_local_skew1, acc_local_skew2, acc_local_skew3, acc_local_skew4 = \
             utils.util.test_img(test_users, skew_users, idx, net_glob, dataset_test, args)
@@ -210,6 +206,7 @@ async def train(uuid, epochs, start_time):
         },
         'uuid': uuid,
         'epochs': epochs,
+        'is_sync': True
     }
     await http_client_post(blockchain_server_url, body_data)
 
@@ -253,6 +250,7 @@ async def train_count(epochs, uuid, start_time, train_time, w_compressed):
             },
             'uuid': uuid,
             'epochs': epochs,
+            'is_sync': True
         }
         logger.debug('aggregate global model finished, send global_model_hash [%s] to blockchain in epoch [%s].'
                      % (global_model_hash, epochs))
@@ -347,13 +345,14 @@ async def next_round_count(epochs):
         next_round_count_num = 0
         lock.release()
         # sleep 20 seconds before trigger next round
-        logger.info("SLEEP FOR A WHILE...")
-        await gen.sleep(20)
+        # logger.info("SLEEP FOR A WHILE...")
+        # await gen.sleep(20)
         # START NEXT ROUND
         body_data = {
             'message': 'PrepareNextRound',
             'data': {},
             'epochs': epochs,
+            'is_sync': True
         }
         await http_client_post(blockchain_server_url, body_data)
 
