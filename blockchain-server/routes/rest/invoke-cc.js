@@ -122,7 +122,7 @@ let pickOrgByCCP = function () {
       .replace(/^connection-org/, '')
       .replace(/\.json$/, '');
   let lastOrgNum = parseInt(lastOrg);
-  if (pickOrg === lastOrgNum) {
+  if (pickOrg >= lastOrgNum) {
     pickOrg = 1;
   } else {
     pickOrg++;
