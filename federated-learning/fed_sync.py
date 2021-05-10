@@ -5,12 +5,11 @@ import os
 import random
 import sys
 import time
-import subprocess
 import copy
 import numpy as np
 import threading
 import torch
-from tornado import httpclient, ioloop, web, gen, httpserver
+from tornado import ioloop, web, httpserver
 
 import utils.util
 from utils.options import args_parser
@@ -59,33 +58,6 @@ def test(data):
     return "yes", detail
 
 
-# returns variable from sourcing a file
-def env_from_sourcing(file_to_source_path, variable_name):
-    source = 'source %s && export MYVAR=$(echo "${%s[@]}")' % (file_to_source_path, variable_name)
-    dump = '/usr/bin/python3 -c "import os, json; print(os.getenv(\'MYVAR\'))"'
-    pipe = subprocess.Popen(['/bin/bash', '-c', '%s && %s' % (source, dump)], stdout=subprocess.PIPE)
-    # return json.loads(pipe.stdout.read())
-    return pipe.stdout.read().decode("utf-8").rstrip()
-
-
-async def http_client_post(url, body_data):
-    json_body = json.dumps(body_data, sort_keys=True, indent=4, ensure_ascii=False,
-                           cls=utils.util.NumpyEncoder).encode('utf8')
-    logger.debug("Start http client post [" + body_data['message'] + "] to: " + url)
-    method = "POST"
-    headers = {'Content-Type': 'application/json; charset=UTF-8'}
-    http_client = httpclient.AsyncHTTPClient()
-    try:
-        request = httpclient.HTTPRequest(url=url, method=method, headers=headers, body=json_body, connect_timeout=300,
-                                         request_timeout=300)
-        response = await http_client.fetch(request)
-        logger.debug("[HTTP Success] [" + body_data['message'] + "] from " + url)
-        return response.body
-    except Exception as e:
-        logger.error("[HTTP Error] [" + body_data['message'] + "] from " + url + " ERROR DETAIL: %s" % e)
-        return None
-
-
 # STEP #1
 def init():
     global args
@@ -101,13 +73,13 @@ def init():
     global global_model_hash
     # parse network.config and read the peer addresses
     real_path = os.path.dirname(os.path.realpath(__file__))
-    peerAddressVar = env_from_sourcing(os.path.join(real_path, "../fabric-network/network.config"), "PeerAddress")
-    peer_address_list = peerAddressVar.split(' ')
-    peerHeaderAddr = peer_address_list[0].split(":")[0]
+    peer_address_list = utils.util.env_from_sourcing(os.path.join(real_path, "../fabric-network/network.config"),
+                                                  "PeerAddress").split(' ')
+    peer_header_addr = peer_address_list[0].split(":")[0]
     # initially the blockchain communicate server is load on the first peer
-    blockchain_server_url = "http://" + peerHeaderAddr + ":3000/invoke/mychannel/fabcar"
+    blockchain_server_url = "http://" + peer_header_addr + ":3000/invoke/mychannel/fabcar"
     # initially the trigger url is load on the first peer
-    trigger_url = "http://" + peerHeaderAddr + ":" + str(fed_listen_port) + "/trigger"
+    trigger_url = "http://" + peer_header_addr + ":" + str(fed_listen_port) + "/trigger"
 
     # parse args
     args = args_parser()
@@ -147,7 +119,7 @@ async def start():
         'epochs': args.epochs,
         'is_sync': True
     }
-    await http_client_post(blockchain_server_url, body_data)
+    await utils.util.http_client_post(blockchain_server_url, body_data)
 
 
 # STEP #2
@@ -170,6 +142,7 @@ async def train(uuid, epochs, start_time):
             current_time = time.strftime("%H:%M:%S", time.localtime())
             time_record_file.write(current_time + "[00]"
                                    + " <Total Time> 0.0"
+                                   + " <Round Time> 0.0"
                                    + " <Train Time> 0.0"
                                    + " <Test Time> 0.0"
                                    + " <Communication Time> 0.0"
@@ -198,7 +171,7 @@ async def train(uuid, epochs, start_time):
         'start_time': start_time,
         'train_time': train_time
     }
-    await http_client_post(trigger_url, body_data)
+    await utils.util.http_client_post(trigger_url, body_data)
 
     # send hash of local model to the ledger
     model_md5 = utils.util.generate_md5_hash(w_local)
@@ -211,7 +184,7 @@ async def train(uuid, epochs, start_time):
         'epochs': epochs,
         'is_sync': True
     }
-    await http_client_post(blockchain_server_url, body_data)
+    await utils.util.http_client_post(blockchain_server_url, body_data)
 
 
 # STEP #3
@@ -257,7 +230,7 @@ async def train_count(epochs, uuid, start_time, train_time, w_compressed):
         }
         logger.debug('aggregate global model finished, send global_model_hash [%s] to blockchain in epoch [%s].'
                      % (global_model_hash, epochs))
-        await http_client_post(blockchain_server_url, body_data)
+        await utils.util.http_client_post(blockchain_server_url, body_data)
 
 
 # STEP #7
@@ -271,7 +244,7 @@ async def round_finish(uuid, epochs):
         'epochs': epochs,
     }
     logger.debug('fetch global model of epoch [%s] from: %s' % (epochs, trigger_url))
-    result = await http_client_post(trigger_url, body_data)
+    result = await utils.util.http_client_post(trigger_url, body_data)
     responseObj = json.loads(result)
     detail = responseObj.get("detail")
     global_model_compressed = detail.get("global_model")
@@ -288,7 +261,7 @@ async def round_finish(uuid, epochs):
         'uuid': uuid,
         'epochs': epochs,
     }
-    response = await http_client_post(trigger_url, fetch_data)
+    response = await utils.util.http_client_post(trigger_url, fetch_data)
     responseObj = json.loads(response)
     detail = responseObj.get("detail")
     start_time = detail.get("start_time")
@@ -329,7 +302,7 @@ async def round_finish(uuid, epochs):
             'uuid': uuid,
             'epochs': new_epochs,
         }
-        await http_client_post(trigger_url, body_data)
+        await utils.util.http_client_post(trigger_url, body_data)
     else:
         logger.info("########## ALL DONE! ##########")
         body_data = {
@@ -337,7 +310,7 @@ async def round_finish(uuid, epochs):
             'uuid': uuid,
             'epochs': new_epochs,
         }
-        await http_client_post(trigger_url, body_data)
+        await utils.util.http_client_post(trigger_url, body_data)
 
 
 # count for STEP #7 the next round requests gathered
@@ -363,7 +336,7 @@ async def next_round_count(epochs):
             'epochs': epochs,
             'is_sync': True
         }
-        await http_client_post(blockchain_server_url, body_data)
+        await utils.util.http_client_post(blockchain_server_url, body_data)
 
 
 async def shutdown_count():
@@ -381,7 +354,7 @@ async def shutdown_count():
             'is_sync': False
         }
         logger.debug('Sent shutdown python request to blockchain.')
-        await http_client_post(blockchain_server_url, body_data)
+        await utils.util.http_client_post(blockchain_server_url, body_data)
 
 
 async def fetch_time(uuid, epochs):

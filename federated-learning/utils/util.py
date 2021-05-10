@@ -7,11 +7,14 @@ import gzip
 import hashlib
 import json
 import logging
+import subprocess
+
 import numpy as np
 import os
 import torch
 
 from torchvision import datasets, transforms
+from tornado import httpclient
 
 from datasets.REALWORLD import REALWORLDDataset
 from datasets.UCI import UCIDataset
@@ -170,6 +173,33 @@ def test_img(test_users, skew_users, idx, net_glob, dataset_test, args):
         acc_local_skew4 = torch.div(100.0 * (correct[0] + correct[4]), (len(test_users[idx]) +
                                                                         len(skew_users[3][idx]))).item()
         return acc_local, acc_local_skew1, acc_local_skew2, acc_local_skew3, acc_local_skew4
+
+
+# returns variable from sourcing a file
+def env_from_sourcing(file_to_source_path, variable_name):
+    source = 'source %s && export MYVAR=$(echo "${%s[@]}")' % (file_to_source_path, variable_name)
+    dump = '/usr/bin/python3 -c "import os, json; print(os.getenv(\'MYVAR\'))"'
+    pipe = subprocess.Popen(['/bin/bash', '-c', '%s && %s' % (source, dump)], stdout=subprocess.PIPE)
+    # return json.loads(pipe.stdout.read())
+    return pipe.stdout.read().decode("utf-8").rstrip()
+
+
+async def http_client_post(url, body_data):
+    json_body = json.dumps(body_data, sort_keys=True, indent=4, ensure_ascii=False,
+                           cls=NumpyEncoder).encode('utf8')
+    logger.debug("Start http client post [" + body_data['message'] + "] to: " + url)
+    method = "POST"
+    headers = {'Content-Type': 'application/json; charset=UTF-8'}
+    http_client = httpclient.AsyncHTTPClient()
+    try:
+        request = httpclient.HTTPRequest(url=url, method=method, headers=headers, body=json_body, connect_timeout=300,
+                                         request_timeout=300)
+        response = await http_client.fetch(request)
+        logger.debug("[HTTP Success] [" + body_data['message'] + "] from " + url)
+        return response.body
+    except Exception as e:
+        logger.error("[HTTP Error] [" + body_data['message'] + "] from " + url + " ERROR DETAIL: %s" % e)
+        return None
 
 
 class NumpyEncoder(json.JSONEncoder):
