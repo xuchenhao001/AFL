@@ -43,10 +43,12 @@ test_users = []
 skew_users = []
 peer_address_list = []
 global_model_hash = ""
+g_init_time = {}
 g_start_time = {}
 g_train_time = {}
 g_train_global_model = None
 g_train_global_model_version = 0
+shutdown_count_num = 0
 
 
 def test(data):
@@ -138,7 +140,6 @@ async def start():
         'data': {
             'global_model_hash': global_model_hash,
             'user_number': args.num_users,
-            'do_elect': True
         },
         'epochs': args.epochs,
         'is_sync': False
@@ -153,6 +154,8 @@ async def train(uuid, epochs, start_time):
     # calculate initial model accuracy, record it as the bench mark.
     idx = int(uuid) - 1
     if epochs == args.epochs:
+        global g_init_time
+        g_init_time[str(uuid)] = start_time
         net_glob.eval()
         acc_local, acc_local_skew1, acc_local_skew2, acc_local_skew3, acc_local_skew4 = \
             utils.util.test_img(test_users, skew_users, idx, net_glob, dataset_test, args)
@@ -302,10 +305,12 @@ async def round_finish(uuid, epochs):
 
     with open(filename, "a") as time_record_file:
         current_time = time.strftime("%H:%M:%S", time.localtime())
-        total_time = time.time() - start_time
-        communication_time = total_time - train_time - test_time
+        total_time = time.time() - g_init_time[str(uuid)]
+        round_time = time.time() - start_time
+        communication_time = round_time - train_time - test_time
         time_record_file.write(current_time + "[" + f"{epochs:0>2}" + "]"
                                + " <Total Time> " + str(total_time)[:8]
+                               + " <Round Time> " + str(round_time)[:8]
                                + " <Train Time> " + str(train_time)[:8]
                                + " <Test Time> " + str(test_time)[:8]
                                + " <Communication Time> " + str(communication_time)[:8]
@@ -319,11 +324,31 @@ async def round_finish(uuid, epochs):
         # start next round of train right now
         await train(uuid, new_epochs, time.time())
     else:
-        logger.info("TRAINING DONE!")
-        if global_model_version >= args.num_users * args.epochs:
-            logger.info("########## ALL DONE! ##########")
-            await gen.sleep(600)  # sleep 600 seconds before exit
-            sys.exit()
+        logger.info("########## ALL DONE! ##########")
+        body_data = {
+            'message': 'shutdown_python',
+            'uuid': uuid,
+            'epochs': new_epochs,
+        }
+        await http_client_post(trigger_url, body_data)
+
+
+async def shutdown_count():
+    global shutdown_count_num
+    lock.acquire()
+    shutdown_count_num += 1
+    lock.release()
+    if shutdown_count_num == args.num_users:
+        # send request to blockchain for shutting down the python
+        body_data = {
+            'message': 'ShutdownPython',
+            'data': {},
+            'uuid': "",
+            'epochs': 0,
+            'is_sync': False
+        }
+        logger.debug('Sent shutdown python request to blockchain.')
+        await http_client_post(blockchain_server_url, body_data)
 
 
 async def fetch_time(uuid, epochs):
@@ -370,6 +395,8 @@ class TriggerHandler(web.RequestHandler):
             detail = await download_global_model()
         elif message == "fetch_time":
             detail = await fetch_time(data.get("uuid"), data.get("epochs"))
+        elif message == "shutdown_python":
+            detail = await shutdown_count()
 
         response = {"status": status, "detail": detail}
         in_json = json.dumps(response, sort_keys=True, indent=4, ensure_ascii=False).encode('utf8')
@@ -404,8 +431,7 @@ class MainHandler(web.RequestHandler):
         elif message == "prepare":
             asyncio.ensure_future(train(data.get("uuid"), data.get("epochs"), time.time()))
         elif message == "shutdown":
-            logger.info("########## ALL DONE! ##########")
-            await gen.sleep(600)  # sleep 600 seconds before exit
+            logger.info("########## PYTHON SHUTTING DOWN! ##########")
             sys.exit()
         return
 
