@@ -1,0 +1,15 @@
+/channel-artifacts/*.tx
+/channel-artifacts/*.block
+/ledgers
+/ledgers-backup
+/channel-artifacts/*.json
+/org3-artifacts/crypto-config/*
+network-cache/ordererOrganizations/*
+network-cache/peerOrganizations/*
+network-cache/configtx.yaml
+network-cache/crypto-config.yaml
+network-cache/docker-compose-*.yaml
+system-genesis-block/*
+fabcar.tar.gz
+log.txt
+

@@ -1,0 +1,13 @@
+.DS_Store
+.idea
+/data
+node_modules
+bin/
+vendor/
+config/
+wallet/
+result-record_*
+output/
+*.log
+raft/hraftd
+networkCache.tar.gz
