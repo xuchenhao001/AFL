@@ -1,10 +1,10 @@
 #!/bin/bash
 
-source ../fabric-samples/network.config
+source ../fabric-network/network.config
 
 for i in "${!PeerAddress[@]}"; do
   addrIN=(${PeerAddress[i]//:/ })
   
-  ssh ${HostUser}@${addrIN[0]} "cd ~/EASC/ && git pull"
+  ssh ${HostUser}@${addrIN[0]} "cd $PWD/../ && git pull"
 done
 

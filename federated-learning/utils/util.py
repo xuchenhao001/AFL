@@ -1,16 +1,23 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # Python version: 3.6
+import base64
+import copy
+import gzip
+import hashlib
+import json
 import logging
+import numpy as np
 import os
+import torch
 
 from torchvision import datasets, transforms
 
 from datasets.REALWORLD import REALWORLDDataset
 from datasets.UCI import UCIDataset
 from models.Nets import CNNCifar, CNNMnist, UCI_CNN, MLP
-from utils.sampling import mnist_iid, cifar_iid, noniid_onepass
-
+from models.test import test_img_total
+from utils.sampling import iid_onepass, noniid_onepass
 
 # format colorful log output
 BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE = range(8)
@@ -87,9 +94,8 @@ def dataset_loader(dataset_name, isIID, num_users):
         mnist_data_path = os.path.join(real_path, "../../data/mnist/")
         dataset_train = datasets.MNIST(mnist_data_path, train=True, download=True, transform=trans_mnist)
         dataset_test = datasets.MNIST(mnist_data_path, train=False, download=True, transform=trans_mnist)
-        # sample users
         if isIID:
-            dict_users = mnist_iid(dataset_train, num_users)
+            dict_users, test_users = iid_onepass(dataset_train, dataset_test, num_users, dataset_name='mnist')
         else:
             dict_users, test_users, skew_users = noniid_onepass(dataset_train, dataset_test, num_users,
                                                                 dataset_name='mnist')
@@ -100,7 +106,7 @@ def dataset_loader(dataset_name, isIID, num_users):
         dataset_train = datasets.CIFAR10(cifar_data_path, train=True, download=True, transform=trans_cifar)
         dataset_test = datasets.CIFAR10(cifar_data_path, train=False, download=True, transform=trans_cifar)
         if isIID:
-            dict_users = cifar_iid(dataset_train, num_users)
+            dict_users, test_users = iid_onepass(dataset_train, dataset_test, num_users, dataset_name='cifar')
         else:
             dict_users, test_users, skew_users = noniid_onepass(dataset_train, dataset_test, num_users,
                                                                 dataset_name='cifar')
@@ -109,7 +115,7 @@ def dataset_loader(dataset_name, isIID, num_users):
         dataset_train = UCIDataset(data_path=uci_data_path, phase='train')
         dataset_test = UCIDataset(data_path=uci_data_path, phase='eval')
         if isIID:
-            dict_users = cifar_iid(dataset_train, num_users)
+            dict_users, test_users = iid_onepass(dataset_train, dataset_test, num_users, dataset_name='uci')
         else:
             dict_users, test_users, skew_users = noniid_onepass(dataset_train, dataset_test, num_users,
                                                                 dataset_name='uci')
@@ -118,7 +124,7 @@ def dataset_loader(dataset_name, isIID, num_users):
         dataset_train = REALWORLDDataset(data_path=realworld_data_path, phase='train')
         dataset_test = REALWORLDDataset(data_path=realworld_data_path, phase='eval')
         if isIID:
-            dict_users = cifar_iid(dataset_train, num_users)
+            dict_users, test_users = iid_onepass(dataset_train, dataset_test, num_users, dataset_name='realworld')
         else:
             dict_users, test_users, skew_users = noniid_onepass(dataset_train, dataset_test, num_users,
                                                                 dataset_name='realworld')
@@ -143,4 +149,79 @@ def model_loader(model_name, dataset_name, device, num_channels, num_classes, im
             len_in *= x
         net_glob = MLP(dim_in=len_in, dim_hidden=64, dim_out=num_classes).to(device)
     return net_glob
+
+
+def test_img(test_users, skew_users, idx, net_glob, dataset_test, args):
+    if args.iid:
+        idx_total = [test_users[idx]]
+        correct = test_img_total(net_glob, dataset_test, idx_total, args)
+        acc_local = torch.div(100.0 * correct[0], len(test_users[idx])).item()
+        return acc_local, 0.0, 0.0, 0.0, 0.0
+    else:
+        idx_total = [test_users[idx], skew_users[0][idx], skew_users[1][idx], skew_users[2][idx], skew_users[3][idx]]
+        correct = test_img_total(net_glob, dataset_test, idx_total, args)
+        acc_local = torch.div(100.0 * correct[0], len(test_users[idx])).item()
+        acc_local_skew1 = torch.div(100.0 * (correct[0] + correct[1]), (len(test_users[idx]) +
+                                                                        len(skew_users[0][idx]))).item()
+        acc_local_skew2 = torch.div(100.0 * (correct[0] + correct[2]), (len(test_users[idx]) +
+                                                                        len(skew_users[1][idx]))).item()
+        acc_local_skew3 = torch.div(100.0 * (correct[0] + correct[3]), (len(test_users[idx]) +
+                                                                        len(skew_users[2][idx]))).item()
+        acc_local_skew4 = torch.div(100.0 * (correct[0] + correct[4]), (len(test_users[idx]) +
+                                                                        len(skew_users[3][idx]))).item()
+        return acc_local, acc_local_skew1, acc_local_skew2, acc_local_skew3, acc_local_skew4
+
+
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return json.JSONEncoder.default(self, obj)
+
+
+def __conver_numpy_value_to_tensor(numpy_data):
+    tensor_data = copy.deepcopy(numpy_data)
+    for key, value in tensor_data.items():
+        tensor_data[key] = torch.from_numpy(np.array(value))
+    return tensor_data
+
+
+def __convert_tensor_value_to_numpy(tensor_data):
+    numpy_data = copy.deepcopy(tensor_data)
+    for key, value in numpy_data.items():
+        numpy_data[key] = value.cpu().numpy()
+    return numpy_data
+
+
+# compress object to base64 string
+def __compress_data(data):
+    encoded = json.dumps(data, sort_keys=True, indent=4, ensure_ascii=False, cls=NumpyEncoder).encode(
+        'utf8')
+    compressed_data = gzip.compress(encoded)
+    b64_encoded = base64.b64encode(compressed_data)
+    return b64_encoded.decode('ascii')
+
+
+# based64 decode to byte, and then decompress it
+def __decompress_data(data):
+    base64_decoded = base64.b64decode(data)
+    decompressed = gzip.decompress(base64_decoded)
+    return json.loads(decompressed)
+
+
+# compress the tensor data
+def compress_tensor(data):
+    return __compress_data(__convert_tensor_value_to_numpy(data))
+
+
+# decompress the data into tensor
+def decompress_tensor(data):
+    return __conver_numpy_value_to_tensor(__decompress_data(data))
+
+
+# generate md5 hash for global model. Require a tensor type gradients.
+def generate_md5_hash(model_weights):
+    np_model_weights = __convert_tensor_value_to_numpy(model_weights)
+    data_md5 = hashlib.md5(json.dumps(np_model_weights, sort_keys=True, cls=NumpyEncoder).encode('utf-8')).hexdigest()
+    return data_md5
 

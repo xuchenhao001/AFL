@@ -159,16 +159,16 @@ function networkUp() {
       COMPOSE_FILES="${COMPOSE_FILES} -f network-cache/orderer.yaml"
     fi
 
-    ssh ${HostUser}@${addrIN[0]} "cd ~/EASC/fabric-samples/ && ${COMPOSE_CMD} ${COMPOSE_FILES} up -d 2>&1"
+    ssh ${HostUser}@${addrIN[0]} "cd ~/AFL/fabric-network/ && ${COMPOSE_CMD} ${COMPOSE_FILES} up -d 2>&1"
   done
 
 }
 
 function cleanLogs() {
-  rm -f ~/EASC/federated-learning/result-record_*.txt
+  rm -f ~/AFL/federated-learning/result-record_*.txt
   for i in "${!PeerAddress[@]}"; do
     addrIN=(${PeerAddress[i]//:/ })
-    ssh ${HostUser}@${addrIN[0]} "rm -f ~/EASC/federated-learning/result-record_*.txt"
+    ssh ${HostUser}@${addrIN[0]} "rm -f ~/AFL/federated-learning/result-record_*.txt"
   done
 }
 
@@ -219,7 +219,7 @@ function networkDown() {
     fi
 
     COMPOSE_FILES=""
-    COMPOSE_FILES_LIST=($(ssh ${HostUser}@${addrIN[0]} "ls -d ~/EASC/fabric-samples/network-cache/docker-compose*"))
+    COMPOSE_FILES_LIST=($(ssh ${HostUser}@${addrIN[0]} "ls -d ~/AFL/fabric-network/network-cache/docker-compose*"))
     for j in "${!COMPOSE_FILES_LIST[@]}"; do
       COMPOSE_FILES="${COMPOSE_FILES} -f ${COMPOSE_FILES_LIST[j]}"
     done
@@ -228,7 +228,7 @@ function networkDown() {
       COMPOSE_FILES="${COMPOSE_FILES} -f network-cache/orderer.yaml"
     fi
 
-    ssh ${HostUser}@${addrIN[0]} "cd ~/EASC/fabric-samples/ && (${COMPOSE_CMD} ${COMPOSE_FILES} down --volumes --remove-orphans || true) && ./clearLocal.sh"
+    ssh ${HostUser}@${addrIN[0]} "cd ~/AFL/fabric-network/ && (${COMPOSE_CMD} ${COMPOSE_FILES} down --volumes --remove-orphans || true) && ./clearLocal.sh"
   done
 }
 

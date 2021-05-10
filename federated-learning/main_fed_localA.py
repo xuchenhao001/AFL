@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-# Python version: 3.6
 import asyncio
 import base64
 import gzip
@@ -19,9 +16,8 @@ from tornado import httpclient, ioloop, web, httpserver, gen
 
 from utils.options import args_parser
 from models.Update import LocalUpdate
-from models.Nets import MLP, CNNMnist, CNNCifar
 from models.Fed import FedAvg
-from models.test import test_img_total
+from models.test import test_img_noniid
 from utils.util import dataset_loader, model_loader, ColoredLogger
 
 logging.setLoggerClass(ColoredLogger)
@@ -103,7 +99,7 @@ async def train(user_id, epochs, w_glob_local, w_locals, w_locals_per, hyperpara
         net_glob.eval()
         idx_total = [test_users[idx], skew_users[0][idx], skew_users[1][idx], skew_users[2][idx],
                      skew_users[3][idx]]
-        correct = test_img_total(net_glob, dataset_test, idx_total, args)
+        correct = test_img_noniid(net_glob, dataset_test, idx_total, args)
         acc_local = torch.div(100.0 * correct[0], len(test_users[idx]))
         filename = "result-record_" + str(user_id) + ".txt"
         # first time clean the file
@@ -193,7 +189,7 @@ async def train(user_id, epochs, w_glob_local, w_locals, w_locals_per, hyperpara
         test_start_time = time.time()
         idx = int(user_id) - 1
         idx_total = [test_users[idx], skew_users[0][idx], skew_users[1][idx], skew_users[2][idx], skew_users[3][idx]]
-        correct = test_img_total(net_glob, dataset_test, idx_total, args)
+        correct = test_img_noniid(net_glob, dataset_test, idx_total, args)
         acc_local = torch.div(100.0 * correct[0], len(test_users[idx]))
         # skew 5%
         acc_local_skew1 = torch.div(100.0 * (correct[0] + correct[1]), (len(test_users[idx]) + len(skew_users[0][idx])))
@@ -477,7 +473,7 @@ def main():
 
     # parse network.config and read the peer addresses
     real_path = os.path.dirname(os.path.realpath(__file__))
-    peer_address_var = env_from_sourcing(os.path.join(real_path, "../fabric-samples/network.config"), "PeerAddress")
+    peer_address_var = env_from_sourcing(os.path.join(real_path, "../fabric-network/network.config"), "PeerAddress")
     peer_address_list = peer_address_var.split(' ')
     peer_addrs = [peer_addr.split(":")[0] for peer_addr in peer_address_list]
     peer_header_addr = peer_addrs[0]

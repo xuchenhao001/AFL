@@ -16,6 +16,8 @@ How to install this project on your operating system.
 
 * Node.js v14.16.1 (npm 6.14.12)
 
+* Golang 1.16.4
+
 * The AFL project should be cloned into the home directory, like `~/AFL`.
 
 * A password-free login from a host (host A) to other hosts (host B, C, ...) in the cluster:

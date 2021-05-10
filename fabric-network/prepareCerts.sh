@@ -21,8 +21,8 @@ function releaseCerts() {
       echo "Please add your public key to other hosts with user \"${HostUser}\" before release certs through command \"ssh-copy-id\"!"
       exit 1
     fi
-    scp networkCache.tar.gz ${HostUser}@${addrIN[0]}:~/EASC/fabric-samples/networkCache.tar.gz
-    ssh ${HostUser}@${addrIN[0]} "cd ~/EASC/fabric-samples/ && tar -zxf networkCache.tar.gz"
+    scp networkCache.tar.gz ${HostUser}@${addrIN[0]}:~/AFL/fabric-network/networkCache.tar.gz
+    ssh ${HostUser}@${addrIN[0]} "cd ~/AFL/fabric-network/ && tar -zxf networkCache.tar.gz"
   done
 }
 

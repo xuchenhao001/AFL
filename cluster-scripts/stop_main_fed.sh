@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source ../fabric-samples/network.config
+source ../fabric-network/network.config
 
 for i in "${!PeerAddress[@]}"; do
   addrIN=(${PeerAddress[i]//:/ })

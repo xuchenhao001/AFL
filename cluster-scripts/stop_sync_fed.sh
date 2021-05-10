@@ -4,6 +4,7 @@ source ../fabric-network/network.config
 
 for i in "${!PeerAddress[@]}"; do
   addrIN=(${PeerAddress[i]//:/ })
-  scp ../fabric-network/network.config ${HostUser}@${addrIN[0]}:$PWD/../fabric-network/network.config
+  
+  ssh ${HostUser}@${addrIN[0]} "kill -9 \$(ps -ef|grep '[s]ync_fed.py'|awk '{print \$2}')"
 done
 
