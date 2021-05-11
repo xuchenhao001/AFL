@@ -2,10 +2,10 @@
 .idea
 /data
 node_modules
-bin/
 vendor/
 config/
 wallet/
+fabric-network/bin/
 result-record_*
 output/
 *.log
