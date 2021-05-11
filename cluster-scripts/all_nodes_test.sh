@@ -63,7 +63,7 @@ function main() {
             arrangeOutput ${schema[0]} ${schema[1]} "fed_async"
             echo "[`date`] ## fed_async done ##"
         fi
-        
+
 
         # fed_sync
         if [[ ! -d "${schema[0]}-${schema[1]}/fed_sync" ]]; then
