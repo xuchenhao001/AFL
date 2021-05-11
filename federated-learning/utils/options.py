@@ -44,5 +44,9 @@ def args_parser():
 
     # customized parameters
     parser.add_argument('--fade', type=float, default=0.75, help="fade coefficient")
+    # total dataset training size: MNIST: 6000, CIFAR-10: 5000, UCI: 3000, REALWORLD: 4000
+    parser.add_argument('--dataset_train_size', type=int, default=6000, help="total dataset training size")
+    # total dataset test size: MNIST: 1000, CIFAR-10: 1000, UCI: 1000, REALWORLD: 1000
+    parser.add_argument('--dataset_test_size', type=int, default=1000, help="total dataset test size")
     args = parser.parse_args()
     return args

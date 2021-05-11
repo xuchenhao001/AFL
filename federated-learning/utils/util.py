@@ -83,8 +83,9 @@ logging.setLoggerClass(ColoredLogger)
 logger = logging.getLogger("util")
 
 
-def dataset_loader(dataset_name, isIID, num_users):
-    logger.info("Load dataset [%s]." % dataset_name)
+def dataset_loader(dataset_name, dataset_train_size, dataset_test_size, isIID, num_users):
+    logger.info("Load dataset [%s] with training data size [%d], test data size [%d]" %
+                (dataset_name, dataset_train_size, dataset_test_size))
     dataset_train = None
     dataset_test = None
     dict_users = None
@@ -98,10 +99,11 @@ def dataset_loader(dataset_name, isIID, num_users):
         dataset_train = datasets.MNIST(mnist_data_path, train=True, download=True, transform=trans_mnist)
         dataset_test = datasets.MNIST(mnist_data_path, train=False, download=True, transform=trans_mnist)
         if isIID:
-            dict_users, test_users = iid_onepass(dataset_train, dataset_test, num_users, dataset_name='mnist')
+            dict_users, test_users = iid_onepass(dataset_train, dataset_train_size, dataset_test, dataset_test_size,
+                                                 num_users, dataset_name='mnist')
         else:
-            dict_users, test_users, skew_users = noniid_onepass(dataset_train, dataset_test, num_users,
-                                                                dataset_name='mnist')
+            dict_users, test_users, skew_users = noniid_onepass(dataset_train, dataset_train_size, dataset_test,
+                                                                dataset_test_size, num_users, dataset_name='mnist')
     elif dataset_name == 'cifar':
         trans_cifar = transforms.Compose(
             [transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
@@ -109,28 +111,31 @@ def dataset_loader(dataset_name, isIID, num_users):
         dataset_train = datasets.CIFAR10(cifar_data_path, train=True, download=True, transform=trans_cifar)
         dataset_test = datasets.CIFAR10(cifar_data_path, train=False, download=True, transform=trans_cifar)
         if isIID:
-            dict_users, test_users = iid_onepass(dataset_train, dataset_test, num_users, dataset_name='cifar')
+            dict_users, test_users = iid_onepass(dataset_train, dataset_train_size, dataset_test, dataset_test_size,
+                                                 num_users, dataset_name='cifar')
         else:
-            dict_users, test_users, skew_users = noniid_onepass(dataset_train, dataset_test, num_users,
-                                                                dataset_name='cifar')
+            dict_users, test_users, skew_users = noniid_onepass(dataset_train, dataset_train_size, dataset_test,
+                                                                dataset_test_size, num_users, dataset_name='cifar')
     elif dataset_name == 'uci':
         uci_data_path = os.path.join(real_path, "../../data/uci/")
         dataset_train = UCIDataset(data_path=uci_data_path, phase='train')
         dataset_test = UCIDataset(data_path=uci_data_path, phase='eval')
         if isIID:
-            dict_users, test_users = iid_onepass(dataset_train, dataset_test, num_users, dataset_name='uci')
+            dict_users, test_users = iid_onepass(dataset_train, dataset_train_size, dataset_test, dataset_test_size,
+                                                 num_users, dataset_name='uci')
         else:
-            dict_users, test_users, skew_users = noniid_onepass(dataset_train, dataset_test, num_users,
-                                                                dataset_name='uci')
+            dict_users, test_users, skew_users = noniid_onepass(dataset_train, dataset_train_size, dataset_test,
+                                                                dataset_test_size, num_users, dataset_name='uci')
     elif dataset_name == 'realworld':
         realworld_data_path = os.path.join(real_path, "../../data/realworld_client/")
         dataset_train = REALWORLDDataset(data_path=realworld_data_path, phase='train')
         dataset_test = REALWORLDDataset(data_path=realworld_data_path, phase='eval')
         if isIID:
-            dict_users, test_users = iid_onepass(dataset_train, dataset_test, num_users, dataset_name='realworld')
+            dict_users, test_users = iid_onepass(dataset_train, dataset_train_size, dataset_test, dataset_test_size,
+                                                 num_users, dataset_name='realworld')
         else:
-            dict_users, test_users, skew_users = noniid_onepass(dataset_train, dataset_test, num_users,
-                                                                dataset_name='realworld')
+            dict_users, test_users, skew_users = noniid_onepass(dataset_train, dataset_train_size, dataset_test,
+                                                                dataset_test_size, num_users, dataset_name='realworld')
     return dataset_train, dataset_test, dict_users, test_users, skew_users
 
 

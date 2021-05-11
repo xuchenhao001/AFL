@@ -59,7 +59,8 @@ def get_indices(labels, user_labels, n_samples):
     return indices
 
 
-def noniid_onepass(dataset_train, dataset_test, num_users, dataset_name='mnist', kept_class=3):
+def noniid_onepass(dataset_train, dataset_train_size, dataset_test, dataset_test_size, num_users, dataset_name='mnist',
+                   kept_class=3):
     train_users = {}
     test_users = {}
     skew_users1 = {}
@@ -81,27 +82,30 @@ def noniid_onepass(dataset_train, dataset_test, num_users, dataset_name='mnist',
     test_labels = np.vstack((test_idxs, test_labels))
 
     if dataset_name == 'mnist':
-        labels = list(range(10))
-        samples = [200, 50, int(50 * skew1_pct), int(50 * skew2_pct), int(50 * skew3_pct), int(50 * skew4_pct)]
+        data_classes = 10
     elif dataset_name == 'cifar':
-        labels = list(range(10))
-        samples = [200, 50, int(50 * skew1_pct), int(50 * skew2_pct), int(50 * skew3_pct), int(50 * skew4_pct)]
+        data_classes = 10
     elif dataset_name == 'uci':
-        labels = list(range(6))
-        samples = [600, 150, int(200 * skew1_pct), int(200 * skew2_pct), int(200 * skew3_pct), int(200 * skew4_pct)]
+        data_classes = 6
     elif dataset_name == 'realworld':
-        labels = list(range(8))
-        samples = [800, 200, int(100 * skew1_pct), int(100 * skew2_pct), int(100 * skew3_pct), int(100 * skew4_pct)]
+        data_classes = 8
+    else:
+        data_classes = 0
+
+    labels = list(range(data_classes))
+    train_samples = int(dataset_train_size / data_classes)
+    test_samples = int(dataset_test_size / data_classes)
+
     for i in range(num_users):
         user_labels = np.random.choice(labels, size=kept_class, replace=False)
         skew_labels = [i for i in labels if i not in user_labels]
-        train_indices = get_indices(train_labels, user_labels, n_samples=samples[0])
-        test_indices = get_indices(test_labels, user_labels, n_samples=samples[1])
+        train_indices = get_indices(train_labels, user_labels, n_samples=train_samples)
+        test_indices = get_indices(test_labels, user_labels, n_samples=test_samples)
 
-        skew1_indices = get_indices(test_labels, skew_labels, n_samples=samples[2])
-        skew2_indices = get_indices(test_labels, skew_labels, n_samples=samples[3])
-        skew3_indices = get_indices(test_labels, skew_labels, n_samples=samples[4])
-        skew4_indices = get_indices(test_labels, skew_labels, n_samples=samples[5])
+        skew1_indices = get_indices(test_labels, skew_labels, n_samples=int(test_samples * skew1_pct))
+        skew2_indices = get_indices(test_labels, skew_labels, n_samples=int(test_samples * skew2_pct))
+        skew3_indices = get_indices(test_labels, skew_labels, n_samples=int(test_samples * skew3_pct))
+        skew4_indices = get_indices(test_labels, skew_labels, n_samples=int(test_samples * skew4_pct))
 
         train_users[i] = train_indices
         test_users[i] = test_indices
@@ -112,7 +116,7 @@ def noniid_onepass(dataset_train, dataset_test, num_users, dataset_name='mnist',
     return train_users, test_users, (skew_users1, skew_users2, skew_users3, skew_users4)
 
 
-def iid_onepass(dataset_train, dataset_test, num_users, dataset_name='mnist'):
+def iid_onepass(dataset_train, dataset_train_size, dataset_test, dataset_test_size, num_users, dataset_name='mnist'):
     train_users = {}
     test_users = {}
 
@@ -125,20 +129,23 @@ def iid_onepass(dataset_train, dataset_test, num_users, dataset_name='mnist'):
     test_labels = np.vstack((test_idxs, test_labels))
 
     if dataset_name == 'mnist':
-        labels = list(range(10))
-        samples = [60, 15]
+        data_classes = 10
     elif dataset_name == 'cifar':
-        labels = list(range(10))
-        samples = [60, 15]
+        data_classes = 10
     elif dataset_name == 'uci':
-        labels = list(range(6))
-        samples = [300, 75]
+        data_classes = 6
     elif dataset_name == 'realworld':
-        labels = list(range(8))
-        samples = [300, 75]
+        data_classes = 8
+    else:
+        data_classes = 0
+
+    labels = list(range(data_classes))
+    train_samples = int(dataset_train_size / data_classes)
+    test_samples = int(dataset_test_size / data_classes)
+
     for i in range(num_users):
-        train_indices = get_indices(train_labels, labels, n_samples=samples[0])
-        test_indices = get_indices(test_labels, labels, n_samples=samples[1])
+        train_indices = get_indices(train_labels, labels, n_samples=train_samples)
+        test_indices = get_indices(test_labels, labels, n_samples=test_samples)
         train_users[i] = train_indices
         test_users[i] = test_indices
 
