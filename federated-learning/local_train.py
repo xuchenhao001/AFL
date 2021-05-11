@@ -12,9 +12,9 @@ import threading
 import torch
 from tornado import httpclient, ioloop, web, gen
 
+import utils
 from utils.options import args_parser
 from models.Update import LocalUpdate
-from models.test import test_img_noniid
 from utils.util import dataset_loader, model_loader, ColoredLogger
 
 logging.setLoggerClass(ColoredLogger)
@@ -40,6 +40,7 @@ test_users = []
 skew_users = []
 g_user_id = 0
 lock = threading.Lock()
+g_init_time = {}
 
 
 # returns variable from sourcing a file
@@ -59,8 +60,9 @@ def init():
     global test_users
     global skew_users
 
-    dataset_train, dataset_test, dict_users, test_users, skew_users = dataset_loader(args.dataset, args.iid,
-                                                                                     args.num_users)
+    dataset_train, dataset_test, dict_users, test_users, skew_users = \
+        utils.util.dataset_loader(args.dataset, args.dataset_train_size, args.dataset_test_size, args.iid,
+                                  args.num_users)
     if dict_users is None:
         logger.error('Error: unrecognized dataset')
         sys.exit()
@@ -75,6 +77,7 @@ def init():
 
 async def train(user_id):
     global args
+    global g_init_time
 
     if user_id is None:
         user_id = await fetch_user_id()
@@ -84,11 +87,11 @@ async def train(user_id):
         # calculate initial model accuracy, record it as the bench mark.
         idx = int(user_id) - 1
         if iter+1 == args.epochs:
+            # for the first time do the training
+            g_init_time[str(user_id)] = time.time()
             net_glob.eval()
-            idx_total = [test_users[idx], skew_users[0][idx], skew_users[1][idx], skew_users[2][idx],
-                         skew_users[3][idx]]
-            correct = test_img_noniid(net_glob, dataset_test, idx_total, args)
-            acc_local = torch.div(100.0 * correct[0], len(test_users[idx]))
+            acc_local, acc_local_skew1, acc_local_skew2, acc_local_skew3, acc_local_skew4 = \
+                utils.util.test_img(test_users, skew_users, idx, net_glob, dataset_test, args)
             filename = "result-record_" + str(user_id) + ".txt"
             # first time clean the file
             open(filename, 'w').close()
@@ -97,11 +100,11 @@ async def train(user_id):
                 current_time = time.strftime("%H:%M:%S", time.localtime())
                 time_record_file.write(current_time + "[00]"
                                        + " <Total Time> 0.0"
+                                       + " <Round Time> 0.0"
                                        + " <Train Time> 0.0"
                                        + " <Test Time> 0.0"
                                        + " <Communication Time> 0.0"
-                                       + " <Alpha> 0.0"
-                                       + " <acc_local> " + str(acc_local.item())[:8]
+                                       + " <acc_local> " + str(acc_local)[:8]
                                        + " <acc_local_skew1> 0.0"
                                        + " <acc_local_skew2> 0.0"
                                        + " <acc_local_skew3> 0.0"
@@ -117,41 +120,29 @@ async def train(user_id):
         # start test
         test_start_time = time.time()
         idx = int(user_id) - 1
-        idx_total = [test_users[idx], skew_users[0][idx], skew_users[1][idx], skew_users[2][idx], skew_users[3][idx]]
-        correct = test_img_noniid(net_glob, dataset_test, idx_total, args)
-        acc_local = torch.div(100.0 * correct[0], len(test_users[idx]))
-        # skew 5%
-        acc_local_skew1 = torch.div(100.0 * (correct[0] + correct[1]), (len(test_users[idx]) + len(skew_users[0][idx])))
-        # skew 10%
-        acc_local_skew2 = torch.div(100.0 * (correct[0] + correct[2]), (len(test_users[idx]) + len(skew_users[1][idx])))
-        # skew 15%
-        acc_local_skew3 = torch.div(100.0 * (correct[0] + correct[3]), (len(test_users[idx]) + len(skew_users[2][idx])))
-        # skew 20%
-        acc_local_skew4 = torch.div(100.0 * (correct[0] + correct[4]), (len(test_users[idx]) + len(skew_users[3][idx])))
+        acc_local, acc_local_skew1, acc_local_skew2, acc_local_skew3, acc_local_skew4 = \
+            utils.util.test_img(test_users, skew_users, idx, net_glob, dataset_test, args)
 
         test_time = time.time() - test_start_time
 
         # before start next round, record the time
         filename = "result-record_" + str(user_id) + ".txt"
-        # # first time clean the file
-        # if iter + 1 == args.epochs:
-        #     with open(filename, 'w') as f:
-        #         pass
 
         with open(filename, "a") as time_record_file:
             current_time = time.strftime("%H:%M:%S", time.localtime())
-            total_time = time.time() - train_start_time
+            total_time = time.time() - g_init_time[str(user_id)]
+            round_time = time.time() - train_start_time
             time_record_file.write(current_time + "[" + f"{iter + 1:0>2}" + "]"
                                    + " <Total Time> " + str(total_time)[:8]
+                                   + " <Round Time> " + str(round_time)[:8]
                                    + " <Train Time> " + str(train_time)[:8]
                                    + " <Test Time> " + str(test_time)[:8]
                                    + " <Communication Time> 0.0"
-                                   + " <Alpha> 0.0"
-                                   + " <acc_local> " + str(acc_local.item())[:8]
-                                   + " <acc_local_skew1> " + str(acc_local_skew1.item())[:8]
-                                   + " <acc_local_skew2> " + str(acc_local_skew2.item())[:8]
-                                   + " <acc_local_skew3> " + str(acc_local_skew3.item())[:8]
-                                   + " <acc_local_skew4> " + str(acc_local_skew4.item())[:8]
+                                   + " <acc_local> " + str(acc_local)[:8]
+                                   + " <acc_local_skew1> " + str(acc_local_skew1)[:8]
+                                   + " <acc_local_skew2> " + str(acc_local_skew2)[:8]
+                                   + " <acc_local_skew3> " + str(acc_local_skew3)[:8]
+                                   + " <acc_local_skew4> " + str(acc_local_skew4)[:8]
                                    + "\n")
 
         # update net_glob for next round
