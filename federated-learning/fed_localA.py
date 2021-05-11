@@ -240,7 +240,7 @@ class MultiTrainThread(threading.Thread):
         self.start_time = start_time
 
     def run(self):
-        time.sleep(start_wait_time)
+        # time.sleep(start_wait_time)
         logger.debug("start new thread")
         loop = asyncio.new_event_loop()
         if self.start_time is None:
