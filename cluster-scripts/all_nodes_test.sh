@@ -3,6 +3,7 @@
 # set -x
 
 source ./test.config
+source ../fabric-network/network.config
 
 function killOldProcesses() {
     # kill all old processes
@@ -47,66 +48,90 @@ function testFinish() {
 function main() {
     for i in "${!TestSchema[@]}"; do
         schema=(${TestSchema[i]//-/ })
-        echo "[`date`] ALL_NODE_TEST UNDER: ${schema[0]} - ${schema[1]}"
+        model=${schema[0]}
+        dataset=${schema[1]}
+        is_iid=${IS_IID}
+        echo "[`date`] ALL_NODE_TEST UNDER: ${model} - ${dataset}"
 
         # fed_async
-        if [[ ! -d "${schema[0]}-${schema[1]}/fed_async" ]]; then
+        if [[ ! -d "${model}-${dataset}/fed_async" ]]; then
             echo "[`date`] ## fed_async start ##"
             # clean
             clean
             # run test
-            ./restart_fed_async.sh ${schema[0]} ${schema[1]}
-            sleep 180
+            for i in "${!PeerAddress[@]}"; do
+              addrIN=(${PeerAddress[i]//:/ })
+              dataset_train_size=${TrainDataSize[i]}
+              dataset_test_size=${TestDataSize[i]}
+              ./restart_core.sh ${HostUser} ${addrIN[0]} "fed_async" "$model" "$dataset" "$is_iid" "$dataset_train_size" "$dataset_test_size"
+            done
+            sleep 60
+            curl -i -X GET 'http://localhost:8888/messages'
             # detect test finish or not
             testFinish "[f]ed_async.py"
             # gather output, move to the right directory
-            arrangeOutput ${schema[0]} ${schema[1]} "fed_async"
+            arrangeOutput ${model} ${dataset} "fed_async"
             echo "[`date`] ## fed_async done ##"
         fi
 
-
         # fed_sync
-        if [[ ! -d "${schema[0]}-${schema[1]}/fed_sync" ]]; then
+        if [[ ! -d "${model}-${dataset}/fed_sync" ]]; then
             echo "[`date`] ## fed_sync start ##"
             # clean
             clean
             # run test
-            ./restart_fed_sync.sh ${schema[0]} ${schema[1]}
-            sleep 180
+            for i in "${!PeerAddress[@]}"; do
+              addrIN=(${PeerAddress[i]//:/ })
+              dataset_train_size=${TrainDataSize[i]}
+              dataset_test_size=${TestDataSize[i]}
+              ./restart_core.sh ${HostUser} ${addrIN[0]} "fed_sync" "$model" "$dataset" "$is_iid" "$dataset_train_size" "$dataset_test_size"
+            done
+            sleep 60
+            curl -i -X GET 'http://localhost:8888/messages'
             # detect test finish or not
             testFinish "[f]ed_sync.py"
             # gather output, move to the right directory
-            arrangeOutput ${schema[0]} ${schema[1]} "fed_sync"
+            arrangeOutput ${model} ${dataset} "fed_sync"
             echo "[`date`] ## fed_sync done ##"
         fi
-        
+
         # fed_localA
-        if [[ ! -d "${schema[0]}-${schema[1]}/fed_localA" ]]; then
+        if [[ ! -d "${model}-${dataset}/fed_localA" ]]; then
             echo "[`date`] ## fed_localA start ##"
             # clean
             clean
             # run test
-            ./restart_fed_localA.sh ${schema[0]} ${schema[1]}
+            for i in "${!PeerAddress[@]}"; do
+              addrIN=(${PeerAddress[i]//:/ })
+              dataset_train_size=${TrainDataSize[i]}
+              dataset_test_size=${TestDataSize[i]}
+              ./restart_core.sh ${HostUser} ${addrIN[0]} "fed_localA" "$model" "$dataset" "$is_iid" "$dataset_train_size" "$dataset_test_size"
+            done
             sleep 180
             # detect test finish or not
             testFinish "[f]ed_localA.py"
             # gather output, move to the right directory
-            arrangeOutput ${schema[0]} ${schema[1]} "fed_localA"
+            arrangeOutput ${model} ${dataset} "fed_localA"
             echo "[`date`] ## fed_localA done ##"
         fi
 
         # local_train
-        if [[ ! -d "${schema[0]}-${schema[1]}/local_train" ]]; then
+        if [[ ! -d "${model}-${dataset}/local_train" ]]; then
             echo "[`date`] ## local_train start ##"
             # clean
             clean
             # run test
-            ./restart_local_train.sh ${schema[0]} ${schema[1]}
+            for i in "${!PeerAddress[@]}"; do
+              addrIN=(${PeerAddress[i]//:/ })
+              dataset_train_size=${TrainDataSize[i]}
+              dataset_test_size=${TestDataSize[i]}
+              ./restart_core.sh ${HostUser} ${addrIN[0]} "local_train" "$model" "$dataset" "$is_iid" "$dataset_train_size" "$dataset_test_size"
+            done
             sleep 180
             # detect test finish or not
             testFinish "[l]ocal_train.py"
             # gather output, move to the right directory
-            arrangeOutput ${schema[0]} ${schema[1]} "local_train"
+            arrangeOutput ${model} ${dataset} "local_train"
             echo "[`date`] ## local_train done ##"
         fi
 
