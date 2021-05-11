@@ -7,6 +7,7 @@ dataset=$5
 is_iid=$6
 dataset_train_size=$7
 dataset_test_size=$8
+fade=$9
 
 
 FIRST_CHAR=$(echo ${test_name} | cut -c1-1)
@@ -28,6 +29,9 @@ if [[ ! -z "$dataset_train_size" ]]; then
 fi
 if [[ ! -z "$dataset_test_size" ]]; then
   PYTHON_CMD="$PYTHON_CMD --dataset_test_size=$dataset_test_size"
+fi
+if [[ ! -z "$fade" ]]; then
+  PYTHON_CMD="$PYTHON_CMD --fade=$fade"
 fi
 
 ssh ${user}@${addr} "kill -9 \$(ps -ef|grep '$PS_NAME'|awk '{print \$2}')"
