@@ -14,7 +14,7 @@ from tornado import ioloop, web, httpserver
 import utils.util
 from utils.options import args_parser
 from models.Update import LocalUpdate
-from models.Fed import FedAvg
+from models.Fed import FadeFedAvg
 
 logging.setLoggerClass(utils.util.ColoredLogger)
 logger = logging.getLogger("fed_async")
@@ -48,6 +48,7 @@ g_train_time = {}
 g_train_global_model = None
 g_train_global_model_version = 0
 shutdown_count_num = 0
+fade_count = None  # for each epoch, record the number of submitted local model
 
 
 def test(data):
@@ -205,8 +206,9 @@ async def aggregate(epochs, uuid, start_time, train_time, w_compressed):
     if g_train_global_model is None:
         w_glob = utils.util.decompress_tensor(w_compressed)
     else:
-        models_to_aggregate = [g_train_global_model, utils.util.decompress_tensor(w_compressed)]
-        w_glob = FedAvg(models_to_aggregate)
+        fade_c = calculate_fade_c(int(epochs))
+        logger.debug("calculated fade_c: %f" % fade_c)
+        w_glob = FadeFedAvg(g_train_global_model, utils.util.decompress_tensor(w_compressed), fade_c)
     # save global model for further download (compressed)
     g_train_global_model = w_glob
     g_train_global_model_version += 1
@@ -227,6 +229,24 @@ async def aggregate(epochs, uuid, start_time, train_time, w_compressed):
     logger.debug('aggregate global model finished, send global_model_hash [%s] to blockchain in epoch [%s].'
                  % (global_model_hash, epochs))
     await utils.util.http_client_post(blockchain_server_url, body_data)
+
+
+def calculate_fade_c(epoch):
+    global fade_count
+    # lock.acquire()
+    if fade_count is None:
+        fade_count = [0] * args.epochs
+    fade_target = args.fade
+    fade_ratio = fade_count[epoch-1] / (args.num_users - 1)
+    if fade_target > 1:
+        fade_range = fade_target - 1
+        fade_c = fade_range * fade_ratio + 1
+    else:
+        fade_range = 1 - fade_target
+        fade_c = 1 - fade_range * fade_ratio
+    fade_count[epoch-1] += 1
+    # lock.release()
+    return fade_c
 
 
 # STEP #7

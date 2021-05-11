@@ -4,6 +4,7 @@
 
 import argparse
 
+
 def args_parser():
     parser = argparse.ArgumentParser()
     # federated arguments
@@ -31,7 +32,6 @@ def args_parser():
 
     # support dataset: "cifar", "mnist"
     parser.add_argument('--dataset', type=str, default='cifar', help="name of dataset")
-    parser.add_argument('--hyperpara', type=float, default=0.75, help="hyperpara alpha")
     parser.add_argument('--iid', action='store_true', help='whether i.i.d or not')
     parser.add_argument('--num_classes', type=int, default=10, help="number of classes")
     parser.add_argument('--num_channels', type=int, default=1, help="number of channels of imges")
@@ -41,5 +41,8 @@ def args_parser():
     parser.add_argument('--seed', type=int, default=1, help='random seed (default: 1)')
     parser.add_argument('--log_level', type=str, default='DEBUG', help='level of logs: DEBUG, INFO, WARNING, ERROR, '
                                                                        'or CRITICAL')
+
+    # customized parameters
+    parser.add_argument('--fade', type=float, default=0.75, help="fade coefficient")
     args = parser.parse_args()
     return args
