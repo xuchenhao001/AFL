@@ -88,8 +88,9 @@ def init():
     # parse participant number
     args.num_users = len(peer_address_list)
 
-    dataset_train, dataset_test, dict_users, test_users, skew_users = utils.util.dataset_loader(args.dataset, args.iid,
-                                                                                           args.num_users)
+    dataset_train, dataset_test, dict_users, test_users, skew_users = \
+        utils.util.dataset_loader(args.dataset, args.dataset_train_size, args.dataset_test_size, args.iid,
+                                  args.num_users)
     if dict_users is None:
         logger.error('Error: unrecognized dataset')
         sys.exit()
