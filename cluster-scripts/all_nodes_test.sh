@@ -8,6 +8,7 @@ function killOldProcesses() {
     # kill all old processes
     ./stop_fed_async.sh
     ./stop_fed_sync.sh
+    ./stop_fed_localA.sh
     ./stop_local_train.sh
 }
 
@@ -79,6 +80,20 @@ function main() {
             echo "[`date`] ## fed_sync done ##"
         fi
         
+        # fed_localA
+        if [[ ! -d "${schema[0]}-${schema[1]}/fed_localA" ]]; then
+            echo "[`date`] ## fed_localA start ##"
+            # clean
+            clean
+            # run test
+            ./restart_fed_localA.sh ${schema[0]} ${schema[1]}
+            sleep 180
+            # detect test finish or not
+            testFinish "[f]ed_localA.py"
+            # gather output, move to the right directory
+            arrangeOutput ${schema[0]} ${schema[1]} "fed_localA"
+            echo "[`date`] ## fed_localA done ##"
+        fi
 
         # local_train
         if [[ ! -d "${schema[0]}-${schema[1]}/local_train" ]]; then
