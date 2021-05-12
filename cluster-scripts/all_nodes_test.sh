@@ -51,6 +51,7 @@ function main() {
         model=${schema[0]}
         dataset=${schema[1]}
         is_iid=${IS_IID}
+        fade=${FADE}
         echo "[`date`] ALL_NODE_TEST UNDER: ${model} - ${dataset}"
 
         # fed_async
@@ -63,7 +64,7 @@ function main() {
               addrIN=(${PeerAddress[i]//:/ })
               dataset_train_size=${TrainDataSize[i]}
               dataset_test_size=${TestDataSize[i]}
-              ./restart_core.sh ${HostUser} ${addrIN[0]} "fed_async" "$model" "$dataset" "$is_iid" "$dataset_train_size" "$dataset_test_size"
+              ./restart_core.sh ${HostUser} ${addrIN[0]} "fed_async" "$model" "$dataset" "$is_iid" "$dataset_train_size" "$dataset_test_size" "$fade"
             done
             sleep 60
             curl -i -X GET 'http://localhost:8888/messages'
@@ -84,7 +85,7 @@ function main() {
               addrIN=(${PeerAddress[i]//:/ })
               dataset_train_size=${TrainDataSize[i]}
               dataset_test_size=${TestDataSize[i]}
-              ./restart_core.sh ${HostUser} ${addrIN[0]} "fed_sync" "$model" "$dataset" "$is_iid" "$dataset_train_size" "$dataset_test_size"
+              ./restart_core.sh ${HostUser} ${addrIN[0]} "fed_sync" "$model" "$dataset" "$is_iid" "$dataset_train_size" "$dataset_test_size" "$fade"
             done
             sleep 60
             curl -i -X GET 'http://localhost:8888/messages'
