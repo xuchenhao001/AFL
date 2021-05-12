@@ -21,10 +21,7 @@ from models.Fed import FedAvg
 from utils.util import dataset_loader, model_loader, ColoredLogger
 
 logging.setLoggerClass(ColoredLogger)
-logger = logging.getLogger("main_fed_localA")
-
-torch.manual_seed(0)
-np.random.seed(0)
+logger = logging.getLogger("fed_localA")
 
 # TO BE CHANGED
 # wait in seconds for other nodes to start
@@ -53,6 +50,8 @@ skew_users = []
 g_start_time = {}
 g_train_time = {}
 g_init_time = {}
+g_train_global_model = None
+g_train_global_model_epoch = None
 
 differenc1 = None
 differenc2 = None
@@ -75,6 +74,8 @@ def init():
     global dict_users
     global test_users
     global skew_users
+    global g_train_global_model
+    global g_train_global_model_epoch
 
     dataset_train, dataset_test, dict_users, test_users, skew_users = \
         utils.util.dataset_loader(args.dataset, args.dataset_train_size, args.dataset_test_size, args.iid,
@@ -87,6 +88,9 @@ def init():
     if net_glob is None:
         logger.error('Error: unrecognized model')
         sys.exit()
+    w = net_glob.state_dict()
+    g_train_global_model = utils.util.compress_tensor(w)
+    g_train_global_model_epoch = -1  # -1 means the initial global model
 
 
 async def train(user_id, epochs, w_glob_local, w_locals, w_locals_per, hyperpara, start_time):
@@ -97,6 +101,19 @@ async def train(user_id, epochs, w_glob_local, w_locals, w_locals_per, hyperpara
         user_id = await fetch_user_id()
 
     if epochs is None:
+        # download initial global model
+        body_data = {
+            'message': 'global_model',
+            'epochs': -1,
+        }
+        logger.debug('fetch initial global model from: %s' % trigger_url)
+        result = await utils.util.http_client_post(trigger_url, body_data)
+        responseObj = json.loads(result)
+        detail = responseObj.get("detail")
+        global_model_compressed = detail.get("global_model")
+        w_glob = utils.util.decompress_tensor(global_model_compressed)
+        logger.debug('Downloaded initial global model hash: ' + utils.util.generate_md5_hash(w_glob))
+        net_glob.load_state_dict(w_glob)
         # calculate initial model accuracy, record it as the bench mark.
         g_init_time[str(user_id)] = start_time
         idx = int(user_id) - 1
@@ -421,6 +438,18 @@ def get_ip():
     return IP
 
 
+async def download_global_model(epochs):
+    if epochs == g_train_global_model_epoch:
+        detail = {
+            "global_model": g_train_global_model,
+        }
+    else:
+        detail = {
+            "global_model": None,
+        }
+    return detail
+
+
 class MainHandler(web.RequestHandler):
 
     async def get(self):
@@ -440,6 +469,8 @@ class MainHandler(web.RequestHandler):
             detail = test(data.get("weight"))
         elif message == "fetch_user_id":
             detail = await load_user_id()
+        elif message == "global_model":
+            detail = await download_global_model(data.get("epochs"))
         elif message == "upload_local_w":
             asyncio.ensure_future(average_local_w(data.get("user_id"), data.get("epochs"), data.get("from_ip"),
                                   data.get("w_glob_local"), data.get("w_locals"), data.get("w_locals_per"),

@@ -6,7 +6,6 @@ import random
 import sys
 import time
 import copy
-import numpy as np
 import threading
 import torch
 from tornado import ioloop, web, httpserver
@@ -18,9 +17,6 @@ from models.Fed import FadeFedAvg
 
 logging.setLoggerClass(utils.util.ColoredLogger)
 logger = logging.getLogger("fed_async")
-
-np.random.seed(0)
-torch.random.manual_seed(0)
 
 # TO BE CHANGED
 # attackers' ids, must be string type "1", "2", ...
@@ -69,6 +65,7 @@ def init():
     global trigger_url
     global peer_address_list
     global global_model_hash
+    global g_train_global_model
     # parse network.config and read the peer addresses
     real_path = os.path.dirname(os.path.realpath(__file__))
     peer_address_list = utils.util.env_from_sourcing(os.path.join(real_path, "../fabric-network/network.config"),
@@ -104,6 +101,7 @@ def init():
     # generate md5 hash from model, which is treated as global model of previous round.
     w = net_glob.state_dict()
     global_model_hash = utils.util.generate_md5_hash(w)
+    g_train_global_model = w
 
 
 # STEP #1
@@ -123,12 +121,24 @@ async def start():
 
 # STEP #2
 async def train(uuid, epochs, start_time):
+    global g_init_time
     logger.debug('Train local model for user: %s, epoch: %s.' % (uuid, epochs))
 
     # calculate initial model accuracy, record it as the bench mark.
     idx = int(uuid) - 1
     if epochs == args.epochs:
-        global g_init_time
+        # download initial global model
+        body_data = {
+            'message': 'global_model',
+        }
+        logger.debug('fetch initial global model from: %s' % trigger_url)
+        result = await utils.util.http_client_post(trigger_url, body_data)
+        responseObj = json.loads(result)
+        detail = responseObj.get("detail")
+        global_model_compressed = detail.get("global_model")
+        w_glob = utils.util.decompress_tensor(global_model_compressed)
+        logger.debug('Downloaded initial global model hash: ' + utils.util.generate_md5_hash(w_glob))
+        net_glob.load_state_dict(w_glob)
         g_init_time[str(uuid)] = start_time
         net_glob.eval()
         acc_local, acc_local_skew1, acc_local_skew2, acc_local_skew3, acc_local_skew4 = \

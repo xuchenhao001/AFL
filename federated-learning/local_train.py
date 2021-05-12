@@ -18,10 +18,7 @@ from models.Update import LocalUpdate
 from utils.util import dataset_loader, model_loader, ColoredLogger
 
 logging.setLoggerClass(ColoredLogger)
-logger = logging.getLogger("main_nn")
-
-torch.manual_seed(0)
-np.random.seed(0)
+logger = logging.getLogger("local_train")
 
 # TO BE CHANGED
 # federated learning server listen port
