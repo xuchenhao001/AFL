@@ -53,6 +53,27 @@ function main() {
         is_iid=${IS_IID}
         echo "[`date`] ALL_NODE_TEST UNDER: ${model} - ${dataset}"
 
+        # fed_async_f00
+        if [[ ! -d "${model}-${dataset}/fed_async_f00" ]]; then
+            echo "[`date`] ## fed_async_f00 start ##"
+            # clean
+            clean
+            # run test
+            for i in "${!PeerAddress[@]}"; do
+              addrIN=(${PeerAddress[i]//:/ })
+              dataset_train_size=${TrainDataSize[i]}
+              dataset_test_size=${TestDataSize[i]}
+              ./restart_core.sh ${HostUser} ${addrIN[0]} "fed_async" "$model" "$dataset" "$is_iid" "$dataset_train_size" "$dataset_test_size" "0.0"
+            done
+            sleep 60
+            curl -i -X GET 'http://localhost:8888/messages'
+            # detect test finish or not
+            testFinish "[f]ed_async.py"
+            # gather output, move to the right directory
+            arrangeOutput ${model} ${dataset} "fed_async_f00"
+            echo "[`date`] ## fed_async_f00 done ##"
+        fi
+
         # fed_async_f05
         if [[ ! -d "${model}-${dataset}/fed_async_f05" ]]; then
             echo "[`date`] ## fed_async_f05 start ##"

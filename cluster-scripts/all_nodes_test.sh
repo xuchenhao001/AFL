@@ -96,6 +96,27 @@ function main() {
             echo "[`date`] ## fed_sync done ##"
         fi
 
+        # fed_avg
+        if [[ ! -d "${model}-${dataset}/fed_avg" ]]; then
+            echo "[`date`] ## fed_avg start ##"
+            # clean
+            clean
+            # run test
+            for i in "${!PeerAddress[@]}"; do
+              addrIN=(${PeerAddress[i]//:/ })
+              dataset_train_size=${TrainDataSize[i]}
+              dataset_test_size=${TestDataSize[i]}
+              ./restart_core.sh ${HostUser} ${addrIN[0]} "fed_avg" "$model" "$dataset" "$is_iid" "$dataset_train_size" "$dataset_test_size" "$fade"
+            done
+            sleep 60
+            curl -i -X GET 'http://localhost:8888/messages'
+            # detect test finish or not
+            testFinish "[f]ed_avg.py"
+            # gather output, move to the right directory
+            arrangeOutput ${model} ${dataset} "fed_avg"
+            echo "[`date`] ## fed_avg done ##"
+        fi
+
         # fed_localA
         if [[ ! -d "${model}-${dataset}/fed_localA" ]]; then
             echo "[`date`] ## fed_localA start ##"
