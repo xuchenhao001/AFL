@@ -148,10 +148,10 @@ curl -i -X GET 'http://localhost:8888/messages'
 The comparative experiments include (under `AFL/federated-learning/` directory):
 
 ```bash
-fed_server.py  # our proposed schema (need for blockchain)
-fed_server_alpha.py  # our proposed schema with fixed alpha (need for blockchain)
-main_fed_localA.py  # Adaptive personalized federated learning (APFL) (no need for blockchain)
-main_nn.py  # local deep learning algorithm (Local Training) (no need for blockchain)
-main_fed.py  # FedAvg algorithm (no need for blockchain)
+fed_async.py  # our proposed asynchronous federated learning schema (need blockchain)
+fed_sync.py  # synchronous federated learning schema (need blockchain)
+fed_avg.py  # synchronous federated learning (FedAvg) algorithm (no need blockchain)
+fed_localA.py  # Adaptive personalized federated learning (APFL) (no need blockchain)
+local_train.py  # local deep learning algorithm (Local Training) (no need blockchain)
 ```
 
