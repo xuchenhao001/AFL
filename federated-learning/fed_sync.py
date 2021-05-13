@@ -171,8 +171,8 @@ async def train(uuid, epochs, start_time):
     train_start_time = time.time()
     w_local, loss = local.train(net=copy.deepcopy(net_glob).to(args.device))
     # fake attackers
-    if uuid in attackers_id:
-        w_local = disturb_w(w_local)
+    if str(uuid) in attackers_id:
+        w_local = utils.util.disturb_w(w_local)
     train_time = time.time() - train_start_time
 
     # send local model to the first node
@@ -378,15 +378,6 @@ async def fetch_time(uuid, epochs):
         "train_time": train_time,
     }
     return detail
-
-
-def disturb_w(w):
-    disturbed_w = copy.deepcopy(w)
-    for name, param in w.items():
-        beta = random.random()
-        transformed_w = param * beta
-        disturbed_w[name] = transformed_w
-    return disturbed_w
 
 
 async def download_global_model(epochs):

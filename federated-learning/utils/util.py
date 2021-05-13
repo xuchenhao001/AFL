@@ -7,6 +7,7 @@ import gzip
 import hashlib
 import json
 import logging
+import random
 import subprocess
 
 import numpy as np
@@ -260,3 +261,11 @@ def generate_md5_hash(model_weights):
     data_md5 = hashlib.md5(json.dumps(np_model_weights, sort_keys=True, cls=NumpyEncoder).encode('utf-8')).hexdigest()
     return data_md5
 
+
+def disturb_w(w):
+    disturbed_w = copy.deepcopy(w)
+    for name, param in w.items():
+        beta = random.random()
+        transformed_w = param * beta
+        disturbed_w[name] = transformed_w
+    return disturbed_w

@@ -1,6 +1,6 @@
 # Asynchronous Federated Learning
 
-Asynchronous Federated Learning code. Based on Hyperledger Fabric v2.2.0 and python torch v1.6.0.
+Asynchronous Federated Learning code. Based on Hyperledger Fabric v2.3.
 
 ## Install
 
