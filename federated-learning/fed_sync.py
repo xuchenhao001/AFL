@@ -320,9 +320,7 @@ async def round_finish(uuid, epochs):
     else:
         logger.info("########## ALL DONE! ##########")
         body_data = {
-            'message': 'shutdown_python',
-            'uuid': uuid,
-            'epochs': new_epochs,
+            'message': 'shutdown_python'
         }
         await utils.util.http_client_post(trigger_url, body_data)
 

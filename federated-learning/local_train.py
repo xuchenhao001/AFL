@@ -146,8 +146,10 @@ async def train(user_id):
         net_glob.load_state_dict(w)
 
     logger.info("########## ALL DONE! ##########")
-    await gen.sleep(600)  # sleep 600 seconds before exit
-    os._exit(0)
+    body_data = {
+        'message': 'shutdown_python'
+    }
+    await utils.util.http_client_post(trigger_url, body_data)
 
 
 class MultiTrainThread(threading.Thread):
@@ -176,20 +178,47 @@ async def load_user_id():
     return detail
 
 
-async def http_client_post(url, json_body, message="None"):
-    logger.debug("Start http client post [" + message + "] to: " + url)
-    method = "POST"
-    headers = {'Content-Type': 'application/json; charset=UTF-8'}
-    http_client = httpclient.AsyncHTTPClient()
+async def fetch_user_id():
+    fetch_data = {
+        'message': 'fetch_user_id',
+    }
+    response = await utils.util.http_client_post(trigger_url, fetch_data)
+    responseObj = json.loads(response)
+    detail = responseObj.get("detail")
+    user_id = detail.get("user_id")
+    return user_id
+
+
+async def shutdown_count():
+    global shutdown_count_num
+    lock.acquire()
+    shutdown_count_num += 1
+    lock.release()
+    if shutdown_count_num == args.num_users:
+        # send request to blockchain for shutting down the python
+        body_data = {
+            'message': 'ShutdownPython',
+            'data': {},
+            'uuid': "",
+            'epochs': 0,
+            'is_sync': False
+        }
+        logger.debug('Sent shutdown python request to blockchain.')
+        await utils.util.http_client_post(trigger_url, body_data)
+
+
+def get_ip():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
-        request = httpclient.HTTPRequest(url=url, method=method, headers=headers, body=json_body, connect_timeout=300,
-                                         request_timeout=300)
-        response = await http_client.fetch(request)
-        logger.debug("[HTTP Success] [" + message + "] SERVICE RESPONSE: %s" % response.body)
-        return response.body
-    except Exception as e:
-        logger.error("[HTTP Error] [" + message + "] SERVICE RESPONSE: %s" % e)
-        return None
+        # doesn't even have to be reachable
+        s.connect(('10.255.255.255', 1))
+        IP = s.getsockname()[0]
+        logger.debug("Detected IP address: " + IP)
+    except Exception:
+        IP = '127.0.0.1'
+    finally:
+        s.close()
+    return IP
 
 
 class MainHandler(web.RequestHandler):
@@ -211,36 +240,12 @@ class MainHandler(web.RequestHandler):
             detail = test(data.get("weight"))
         elif message == "fetch_user_id":
             detail = await load_user_id()
+        elif message == "shutdown_python":
+            detail = await shutdown_count()
 
         response = {"status": status, "detail": detail}
         in_json = json.dumps(response, sort_keys=True, indent=4, ensure_ascii=False).encode('utf8')
         self.write(in_json)
-
-
-async def fetch_user_id():
-    fetch_data = {
-        'message': 'fetch_user_id',
-    }
-    json_body = json.dumps(fetch_data, sort_keys=True, indent=4, ensure_ascii=False).encode('utf8')
-    response = await http_client_post(trigger_url, json_body, 'fetch_user_id')
-    responseObj = json.loads(response)
-    detail = responseObj.get("detail")
-    user_id = detail.get("user_id")
-    return user_id
-
-
-def get_ip():
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    try:
-        # doesn't even have to be reachable
-        s.connect(('10.255.255.255', 1))
-        IP = s.getsockname()[0]
-        logger.debug("Detected IP address: " + IP)
-    except Exception:
-        IP = '127.0.0.1'
-    finally:
-        s.close()
-    return IP
 
 
 def main():

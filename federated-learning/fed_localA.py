@@ -152,9 +152,9 @@ async def train(user_id, epochs, w_glob_local, w_locals, w_locals_per, hyperpara
         w_locals_per = copy.deepcopy(w_local)
         hyperpara = args.hyper
     else:
-        w_glob_local = conver_numpy_value_to_tensor(decompress_data(w_glob_local))
-        w_locals = conver_numpy_value_to_tensor(decompress_data(w_locals))
-        w_locals_per = conver_numpy_value_to_tensor(decompress_data(w_locals_per))
+        w_glob_local = utils.util.decompress_tensor(w_glob_local)
+        w_locals = utils.util.decompress_tensor(w_locals)
+        w_locals_per = utils.util.decompress_tensor(w_locals_per)
         w_glob = copy.deepcopy(w_glob_local)
 
     # training for all epochs
@@ -241,8 +241,10 @@ async def train(user_id, epochs, w_glob_local, w_locals, w_locals_per, hyperpara
             return
 
     logger.info("########## ALL DONE! ##########")
-    await gen.sleep(600)  # sleep 600 seconds before exit
-    os._exit(0)
+    body_data = {
+        'message': 'shutdown_python'
+    }
+    await utils.util.http_client_post(trigger_url, body_data)
 
 
 class MultiTrainThread(threading.Thread):
@@ -289,14 +291,14 @@ async def release_global_w(epochs):
     lock.release()
     w_glob_local = FedAvg(wMap)
     wMap = []  # release wMap after aggregation
-    w_glob_local = compress_data(convert_tensor_value_to_numpy(w_glob_local))
+    w_glob_local = utils.util.compress_tensor(w_glob_local)
     for user_id in ipMap.keys():
         key = str(user_id) + "-" + str(epochs)
         start_time = g_start_time.get(key)
         w_locals = wLocalsMap.get(user_id)
         w_locals_per = wLocalsPerMap.get(user_id)
         hyperpara = hyperparaMap.get(user_id)
-        data = {
+        json_body = {
             'message': 'release_global_w',
             'user_id': user_id,
             'epochs': epochs,
@@ -306,9 +308,8 @@ async def release_global_w(epochs):
             'hyperpara': hyperpara,
             'start_time': start_time,
         }
-        json_body = json.dumps(data, sort_keys=True, indent=4, ensure_ascii=False, cls=NumpyEncoder).encode('utf8')
         my_url = "http://" + ipMap[user_id] + ":" + str(fed_listen_port) + "/trigger"
-        asyncio.ensure_future(http_client_post(my_url, json_body, 'release_global_w'))
+        asyncio.ensure_future(utils.util.http_client_post(my_url, json_body))
 
 
 async def average_local_w(user_id, epochs, from_ip, w_glob_local, w_locals, w_locals_per, hyperpara, start_time):
@@ -327,7 +328,7 @@ async def average_local_w(user_id, epochs, from_ip, w_glob_local, w_locals, w_lo
     ipMap[user_id] = from_ip
 
     # update wMap (w_glob_local) to be averaged
-    w_glob_local = conver_numpy_value_to_tensor(decompress_data(w_glob_local))
+    w_glob_local = utils.util.decompress_tensor(w_glob_local)
     wMap.append(w_glob_local)
     # update wLocalsMap
     wLocalsMap[user_id] = w_locals
@@ -339,38 +340,39 @@ async def average_local_w(user_id, epochs, from_ip, w_glob_local, w_locals, w_lo
         asyncio.ensure_future(release_global_w(epochs))
 
 
-async def http_client_post(url, json_body, message="None"):
-    logger.debug("Start http client post [" + message + "] to: " + url)
-    method = "POST"
-    headers = {'Content-Type': 'application/json; charset=UTF-8'}
-    http_client = httpclient.AsyncHTTPClient()
-    try:
-        request = httpclient.HTTPRequest(url=url, method=method, headers=headers, body=json_body, connect_timeout=300,
-                                         request_timeout=300)
-        response = await http_client.fetch(request)
-        logger.debug("[HTTP Success] [" + message + "] SERVICE RESPONSE: %s" % response.body)
-        return response.body
-    except Exception as e:
-        logger.error("[HTTP Error] [" + message + "] SERVICE RESPONSE: %s" % e)
-        return None
-
-
 async def fetch_user_id():
     fetch_data = {
         'message': 'fetch_user_id',
     }
-    json_body = json.dumps(fetch_data, sort_keys=True, indent=4, ensure_ascii=False).encode('utf8')
-    response = await http_client_post(trigger_url, json_body, 'fetch_user_id')
+    response = await utils.util.http_client_post(trigger_url, fetch_data)
     responseObj = json.loads(response)
     detail = responseObj.get("detail")
     user_id = detail.get("user_id")
     return user_id
 
 
+async def shutdown_count():
+    global shutdown_count_num
+    lock.acquire()
+    shutdown_count_num += 1
+    lock.release()
+    if shutdown_count_num == args.num_users:
+        # send request to blockchain for shutting down the python
+        body_data = {
+            'message': 'ShutdownPython',
+            'data': {},
+            'uuid': "",
+            'epochs': 0,
+            'is_sync': False
+        }
+        logger.debug('Sent shutdown python request to blockchain.')
+        await utils.util.http_client_post(trigger_url, body_data)
+
+
 async def upload_local_w(user_id, epochs, from_ip, w_glob_local, w_locals, w_locals_per, hyperpara, start_time):
-    w_glob_local = compress_data(convert_tensor_value_to_numpy(w_glob_local))
-    w_locals = compress_data(convert_tensor_value_to_numpy(w_locals))
-    w_locals_per = compress_data(convert_tensor_value_to_numpy(w_locals_per))
+    w_glob_local = utils.util.compress_tensor(w_glob_local)
+    w_locals = utils.util.compress_tensor(w_locals)
+    w_locals_per = utils.util.compress_tensor(w_locals_per)
     upload_data = {
         'message': 'upload_local_w',
         'user_id': user_id,
@@ -382,46 +384,8 @@ async def upload_local_w(user_id, epochs, from_ip, w_glob_local, w_locals, w_loc
         'from_ip': from_ip,
         'start_time': start_time,
     }
-    json_body = json.dumps(upload_data, sort_keys=True, indent=4, ensure_ascii=False, cls=NumpyEncoder).encode('utf8')
-    await http_client_post(trigger_url, json_body, 'upload_local_w')
+    await utils.util.http_client_post(trigger_url, upload_data)
     return
-
-
-def conver_numpy_value_to_tensor(numpy_data):
-    tensor_data = copy.deepcopy(numpy_data)
-    for key, value in tensor_data.items():
-        tensor_data[key] = torch.from_numpy(np.array(value))
-    return tensor_data
-
-
-def convert_tensor_value_to_numpy(tensor_data):
-    numpy_data = copy.deepcopy(tensor_data)
-    for key, value in numpy_data.items():
-        numpy_data[key] = value.cpu().numpy()
-    return numpy_data
-
-
-# compress object to base64 string
-def compress_data(data):
-    encoded = json.dumps(data, sort_keys=True, indent=4, ensure_ascii=False, cls=NumpyEncoder).encode(
-        'utf8')
-    compressed_data = gzip.compress(encoded)
-    b64_encoded = base64.b64encode(compressed_data)
-    return b64_encoded.decode('ascii')
-
-
-# based64 decode to byte, and then decompress it
-def decompress_data(data):
-    base64_decoded = base64.b64decode(data)
-    decompressed = gzip.decompress(base64_decoded)
-    return json.loads(decompressed)
-
-
-class NumpyEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, np.ndarray):
-            return obj.tolist()
-        return json.JSONEncoder.default(self, obj)
 
 
 def get_ip():
@@ -480,6 +444,8 @@ class MainHandler(web.RequestHandler):
                                             data.get("w_locals"), data.get("w_locals_per"), data.get("hyperpara"),
                                             data.get("start_time"))
             thread_train.start()
+        elif message == "shutdown_python":
+            detail = await shutdown_count()
 
         response = {"status": status, "detail": detail}
         in_json = json.dumps(response, sort_keys=True, indent=4, ensure_ascii=False).encode('utf8')
