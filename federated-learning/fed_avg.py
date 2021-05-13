@@ -23,8 +23,8 @@ logger = logging.getLogger("fed_avg")
 # TO BE CHANGED
 # attackers' ids, must be string type "1", "2", ...
 attackers_id = []
-# wait in seconds for other nodes to start
-start_wait_time = 15
+# wait in seconds for other nodes to start, seconds
+start_wait_time = 60
 # federated learning server listen port
 fed_listen_port = 8888
 # used for self ip address testing
