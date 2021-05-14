@@ -1,6 +1,4 @@
 import asyncio
-import base64
-import gzip
 import json
 import logging
 import os
@@ -9,10 +7,12 @@ import sys
 import time
 import subprocess
 import copy
+from abc import ABC
+
 import numpy as np
 import threading
 import torch
-from tornado import httpclient, ioloop, web, httpserver, gen
+from tornado import ioloop, web, httpserver, gen
 
 import utils
 from utils.options import args_parser
@@ -28,6 +28,8 @@ logger = logging.getLogger("fed_localA")
 start_wait_time = 15
 # federated learning server listen port
 fed_listen_port = 8888
+# used for self ip address testing
+test_ip_addr = "10.150.187.13"
 # TO BE CHANGED FINISHED
 
 # NOT TO TOUCH VARIABLES BELOW
@@ -52,6 +54,7 @@ g_train_time = {}
 g_init_time = {}
 g_train_global_model = None
 g_train_global_model_epoch = None
+shutdown_count_num = 0
 
 differenc1 = None
 differenc2 = None
@@ -357,15 +360,11 @@ async def shutdown_count():
     shutdown_count_num += 1
     lock.release()
     if shutdown_count_num == args.num_users:
-        # send request to blockchain for shutting down the python
+        # send request to shut down the python
         body_data = {
-            'message': 'ShutdownPython',
-            'data': {},
-            'uuid': "",
-            'epochs': 0,
-            'is_sync': False
+            'message': 'shutdown',
         }
-        logger.debug('Sent shutdown python request to blockchain.')
+        logger.debug('Send shutdown python request.')
         await utils.util.http_client_post(trigger_url, body_data)
 
 
@@ -392,14 +391,15 @@ def get_ip():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
         # doesn't even have to be reachable
-        s.connect(('10.255.255.255', 1))
-        IP = s.getsockname()[0]
-        logger.debug("Detected IP address: " + IP)
-    except Exception:
-        IP = '127.0.0.1'
+        # s.connect(('10.255.255.255', 1))
+        s.connect((test_ip_addr, 1))
+        ip = s.getsockname()[0]
+        print("Detected IP address: " + ip)
+    except socket.error:
+        ip = '127.0.0.1'
     finally:
         s.close()
-    return IP
+    return ip
 
 
 async def download_global_model(epochs):
@@ -414,7 +414,7 @@ async def download_global_model(epochs):
     return detail
 
 
-class MainHandler(web.RequestHandler):
+class MainHandler(web.RequestHandler, ABC):
 
     async def get(self):
         response = {"status": "yes", "detail": "test"}
@@ -446,6 +446,10 @@ class MainHandler(web.RequestHandler):
             thread_train.start()
         elif message == "shutdown_python":
             detail = await shutdown_count()
+        elif message == "shutdown":
+            logger.info("########## PYTHON SHUTTING DOWN! ##########")
+            await gen.sleep(300)  # sleep 300 seconds before exit
+            sys.exit()
 
         response = {"status": status, "detail": detail}
         in_json = json.dumps(response, sort_keys=True, indent=4, ensure_ascii=False).encode('utf8')
