@@ -9,6 +9,7 @@ function killOldProcesses() {
     # kill all old processes
     ./stop_fed_async.sh
     ./stop_fed_sync.sh
+    ./stop_fed_avg.sh
     ./stop_fed_localA.sh
     ./stop_local_train.sh
 }

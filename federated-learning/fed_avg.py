@@ -10,7 +10,7 @@ import threading
 from abc import ABC
 
 import torch
-from tornado import ioloop, web, httpserver
+from tornado import ioloop, web, httpserver, gen
 
 import utils.util
 from utils.options import args_parser
@@ -357,6 +357,7 @@ class TriggerHandler(web.RequestHandler, ABC):
             detail = await shutdown_count()
         elif message == "shutdown":
             logger.info("########## PYTHON SHUTTING DOWN! ##########")
+            await gen.sleep(300)  # sleep 300 seconds before exit
             sys.exit()
 
         response = {"status": status, "detail": detail}
