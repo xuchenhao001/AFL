@@ -16,7 +16,7 @@ import os
 import torch
 
 from torchvision import datasets, transforms
-from tornado import httpclient
+from tornado import httpclient, gen
 
 from datasets.REALWORLD import REALWORLDDataset
 from datasets.UCI import UCIDataset
@@ -285,3 +285,10 @@ def get_ip(test_ip_addr):
     finally:
         s.close()
     return ip
+
+
+async def my_exit(exit_sleep):
+    await gen.sleep(exit_sleep)  # sleep for a while before exit
+    logger.info("########## PYTHON SHUTTING DOWN! ##########")
+    os._exit(0)
+

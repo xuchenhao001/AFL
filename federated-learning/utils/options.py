@@ -44,5 +44,9 @@ def args_parser():
     parser.add_argument('--dataset_train_size', type=int, default=3000, help="total dataset training size")
     # total dataset test size: MNIST: 1000, CIFAR-10: 1000, UCI: 1000, REALWORLD: 1000
     parser.add_argument('--dataset_test_size', type=int, default=500, help="total dataset test size")
+    # ip address that is used to test local IP
+    parser.add_argument('--test_ip_addr', type=str, default="test_ip_addr", help="ip address used to test local IP")
+    # sleep for several seconds before exit python
+    parser.add_argument('--exit_sleep', type=int, default=300, help="sleep for seconds before exit python")
     args = parser.parse_args()
     return args

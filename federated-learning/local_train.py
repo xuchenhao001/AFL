@@ -2,15 +2,13 @@ import asyncio
 import json
 import logging
 import os
-import socket
 import sys
 import time
 import subprocess
 import copy
-import numpy as np
 import threading
 import torch
-from tornado import httpclient, ioloop, web, gen
+from tornado import ioloop, web
 
 import utils
 from utils.options import args_parser
@@ -23,14 +21,13 @@ logger = logging.getLogger("local_train")
 # TO BE CHANGED
 # federated learning server listen port
 fed_listen_port = 8888
-# used for self ip address testing
-test_ip_addr = "10.150.187.13"
 # TO BE CHANGED FINISHED
 
 # NOT TO TOUCH VARIABLES BELOW
 args = None
 net_glob = None
 trigger_url = ""
+test_ip_addr = ""
 peer_address_list = []
 dataset_train = None
 dataset_test = None
@@ -40,6 +37,7 @@ skew_users = []
 g_user_id = 0
 lock = threading.Lock()
 g_init_time = {}
+exit_sleep = 0
 
 
 # returns variable from sourcing a file
@@ -197,15 +195,11 @@ async def shutdown_count():
     shutdown_count_num += 1
     lock.release()
     if shutdown_count_num == args.num_users:
-        # send request to blockchain for shutting down the python
+        # send request to shut down the python
         body_data = {
-            'message': 'ShutdownPython',
-            'data': {},
-            'uuid': "",
-            'epochs': 0,
-            'is_sync': False
+            'message': 'shutdown',
         }
-        logger.debug('Sent shutdown python request to blockchain.')
+        logger.debug('Send shutdown python request.')
         await utils.util.http_client_post(trigger_url, body_data)
 
 
@@ -230,6 +224,8 @@ class MainHandler(web.RequestHandler):
             detail = await load_user_id()
         elif message == "shutdown_python":
             detail = await shutdown_count()
+        elif message == "shutdown":
+            asyncio.ensure_future(utils.util.my_exit(exit_sleep))
 
         response = {"status": status, "detail": detail}
         in_json = json.dumps(response, sort_keys=True, indent=4, ensure_ascii=False).encode('utf8')
@@ -240,6 +236,8 @@ def main():
     global args
     global peer_address_list
     global trigger_url
+    global test_ip_addr
+    global exit_sleep
 
     # parse args
     args = args_parser()
@@ -256,6 +254,10 @@ def main():
 
     # parse participant number
     args.num_users = len(peer_address_list)
+
+    # parse test ip addr
+    test_ip_addr = args.test_ip_addr
+    exit_sleep = args.exit_sleep
 
     # init dataset and global model
     init()
