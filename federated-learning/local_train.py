@@ -154,14 +154,13 @@ async def train(user_id):
 
 
 class MultiTrainThread(threading.Thread):
-    def __init__(self, user_id):
+    def __init__(self):
         threading.Thread.__init__(self)
-        self.user_id = user_id
 
     def run(self):
         logger.debug("start new thread")
         loop = asyncio.new_event_loop()
-        loop.run_until_complete(train(self.user_id))
+        loop.run_until_complete(train(None))
         logger.debug("end thread")
 
 
@@ -268,7 +267,7 @@ def main():
     threads = []
     for addr in peer_addrs:
         if addr == my_ip:
-            thread_train = MultiTrainThread(None)
+            thread_train = MultiTrainThread()
             threads.append(thread_train)
 
     # Start all threads
