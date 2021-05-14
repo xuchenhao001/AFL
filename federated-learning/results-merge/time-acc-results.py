@@ -52,18 +52,21 @@ def extract_by_timeline(result_value_dfs, sampling_frequency, final_time):
                 acc_list.append(latest_acc)
         if sampling_time + sampling_frequency >= final_time:
             break
-        avg = sum(acc_list) / len(acc_list)
-        avg_list.append(round(avg, 2))
+        if len(acc_list) == 0:
+            avg_list.append(None)
+        else:
+            avg = sum(acc_list) / len(acc_list)
+            avg_list.append(round(avg, 2))
     return avg_list
 
 
 def main():
     sampling_frequency = 10  # sampling frequency (seconds)
-    final_time = 900
-    model_name = "cnn"
-    dataset_name = "cifar"
-    # experiments = ["fed_async", "fed_sync", "fed_localA", "local_train"]
-    experiments = ["fed_async_f05", "fed_async_f10", "fed_async_f15"]
+    final_time = 300
+    model_name = "mlp"
+    dataset_name = "mnist"
+    experiments = ["fed_async", "fed_sync", "fed_localA", "local_train"]
+    # experiments = ["fed_async_f05", "fed_async_f10", "fed_async_f15"]
     for experiment in experiments:
         result_lines = extract_file_lines(model_name, dataset_name, experiment)
         result_value_dfs = extract_values(result_lines)
