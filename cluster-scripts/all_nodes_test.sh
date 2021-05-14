@@ -109,7 +109,6 @@ function main() {
               ./restart_core.sh ${HostUser} ${addrIN[0]} "fed_avg" "$model" "$dataset" "$is_iid" "$dataset_train_size" "$dataset_test_size" "$fade"
             done
             sleep 60
-            curl -i -X GET 'http://localhost:8888/messages'
             # detect test finish or not
             testFinish "[f]ed_avg.py"
             # gather output, move to the right directory
