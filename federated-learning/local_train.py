@@ -37,6 +37,7 @@ skew_users = []
 g_user_id = 0
 lock = threading.Lock()
 g_init_time = {}
+shutdown_count_num = 0
 exit_sleep = 0
 
 
