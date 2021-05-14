@@ -287,6 +287,29 @@ def get_ip(test_ip_addr):
     return ip
 
 
+# here starts built in functions
+shutdown_count_num = 0
+ipMap = {}
+
+
+async def shutdown_count(uuid, from_ip, fed_listen_port, lock, num_users):
+    lock.acquire()
+    global shutdown_count_num
+    global ipMap
+    shutdown_count_num += 1
+    ipMap[uuid] = from_ip
+    lock.release()
+    if shutdown_count_num == num_users:
+        # send request to shut down the python
+        body_data = {
+            'message': 'shutdown',
+        }
+        logger.debug('Send shutdown python request.')
+        for uuid in ipMap.keys():
+            client_url = "http://" + ipMap[uuid] + ":" + str(fed_listen_port) + "/trigger"
+            await http_client_post(client_url, body_data)
+
+
 async def my_exit(exit_sleep):
     await gen.sleep(exit_sleep)  # sleep for a while before exit
     logger.info("########## PYTHON SHUTTING DOWN! ##########")

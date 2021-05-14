@@ -212,8 +212,11 @@ async def gathered_global_w(uuid, epochs, w_glob_compressed, start_time, train_t
         asyncio.ensure_future(train(uuid, w_glob, new_epochs))
     else:
         logger.info("########## ALL DONE! ##########")
+        from_ip = utils.util.get_ip(test_ip_addr)
         body_data = {
-            'message': 'shutdown_python'
+            'message': 'shutdown_python',
+            'uuid': uuid,
+            'from_ip': from_ip,
         }
         await utils.util.http_client_post(trigger_url, body_data)
 
@@ -259,20 +262,6 @@ async def average_local_w(uuid, epochs, w_compressed, from_ip, start_time, train
     if len(wMap) == args.num_users:
         logger.debug("Gathered enough w, average and release them")
         asyncio.ensure_future(release_global_w(epochs))
-
-
-async def shutdown_count():
-    global shutdown_count_num
-    lock.acquire()
-    shutdown_count_num += 1
-    lock.release()
-    if shutdown_count_num == args.num_users:
-        # send request to shut down the python
-        body_data = {
-            'message': 'shutdown',
-        }
-        logger.debug('Send shutdown python request.')
-        await utils.util.http_client_post(trigger_url, body_data)
 
 
 async def fetch_uuid():
@@ -339,7 +328,8 @@ class TriggerHandler(web.RequestHandler, ABC):
             await gathered_global_w(data.get("uuid"), data.get("epochs"), data.get("w_glob"),
                                     data.get("start_time"), data.get("train_time"))
         elif message == "shutdown_python":
-            detail = await shutdown_count()
+            detail = await utils.util.shutdown_count(data.get("uuid"), data.get("from_ip"), fed_listen_port, lock,
+                                                     args.num_users)
         elif message == "shutdown":
             asyncio.ensure_future(utils.util.my_exit(exit_sleep))
 

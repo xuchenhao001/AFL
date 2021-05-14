@@ -243,8 +243,11 @@ async def train(user_id, epochs, w_glob_local, w_locals, w_locals_per, hyperpara
             return
 
     logger.info("########## ALL DONE! ##########")
+    from_ip = utils.util.get_ip(test_ip_addr)
     body_data = {
-        'message': 'shutdown_python'
+        'message': 'shutdown_python',
+        'uuid': user_id,
+        'from_ip': from_ip,
     }
     await utils.util.http_client_post(trigger_url, body_data)
 
@@ -353,20 +356,6 @@ async def fetch_user_id():
     return user_id
 
 
-async def shutdown_count():
-    global shutdown_count_num
-    lock.acquire()
-    shutdown_count_num += 1
-    lock.release()
-    if shutdown_count_num == args.num_users:
-        # send request to shut down the python
-        body_data = {
-            'message': 'shutdown',
-        }
-        logger.debug('Send shutdown python request.')
-        await utils.util.http_client_post(trigger_url, body_data)
-
-
 async def upload_local_w(user_id, epochs, from_ip, w_glob_local, w_locals, w_locals_per, hyperpara, start_time):
     w_glob_local = utils.util.compress_tensor(w_glob_local)
     w_locals = utils.util.compress_tensor(w_locals)
@@ -429,7 +418,8 @@ class MainHandler(web.RequestHandler, ABC):
                                             data.get("start_time"))
             thread_train.start()
         elif message == "shutdown_python":
-            detail = await shutdown_count()
+            detail = await utils.util.shutdown_count(data.get("uuid"), data.get("from_ip"), fed_listen_port, lock,
+                                                     args.num_users)
         elif message == "shutdown":
             asyncio.ensure_future(utils.util.my_exit(exit_sleep))
 

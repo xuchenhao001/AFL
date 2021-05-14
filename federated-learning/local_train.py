@@ -147,8 +147,11 @@ async def train(user_id):
         net_glob.load_state_dict(w)
 
     logger.info("########## ALL DONE! ##########")
+    from_ip = utils.util.get_ip(test_ip_addr)
     body_data = {
-        'message': 'shutdown_python'
+        'message': 'shutdown_python',
+        'uuid': user_id,
+        'from_ip': from_ip,
     }
     await utils.util.http_client_post(trigger_url, body_data)
 
@@ -189,20 +192,6 @@ async def fetch_user_id():
     return user_id
 
 
-async def shutdown_count():
-    global shutdown_count_num
-    lock.acquire()
-    shutdown_count_num += 1
-    lock.release()
-    if shutdown_count_num == args.num_users:
-        # send request to shut down the python
-        body_data = {
-            'message': 'shutdown',
-        }
-        logger.debug('Send shutdown python request.')
-        await utils.util.http_client_post(trigger_url, body_data)
-
-
 class MainHandler(web.RequestHandler):
 
     async def get(self):
@@ -223,7 +212,8 @@ class MainHandler(web.RequestHandler):
         elif message == "fetch_user_id":
             detail = await load_user_id()
         elif message == "shutdown_python":
-            detail = await shutdown_count()
+            detail = await utils.util.shutdown_count(data.get("uuid"), data.get("from_ip"), fed_listen_port, lock,
+                                                     args.num_users)
         elif message == "shutdown":
             asyncio.ensure_future(utils.util.my_exit(exit_sleep))
 
