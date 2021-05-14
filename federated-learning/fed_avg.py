@@ -156,7 +156,7 @@ async def train(uuid, w_glob, epochs):
 
     # send local model to the first node
     w_local_compressed = utils.util.compress_tensor(w_local)
-    from_ip = get_ip()
+    from_ip = utils.util.get_ip(test_ip_addr)
     upload_data = {
         'message': 'upload_local_w',
         'uuid': uuid,
@@ -309,21 +309,6 @@ async def load_global_model(epochs):
     return detail
 
 
-def get_ip():
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    try:
-        # doesn't even have to be reachable
-        # s.connect(('10.255.255.255', 1))
-        s.connect((test_ip_addr, 1))
-        ip = s.getsockname()[0]
-        print("Detected IP address: " + ip)
-    except socket.error:
-        ip = '127.0.0.1'
-    finally:
-        s.close()
-    return ip
-
-
 class MultiTrainThread(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
@@ -397,7 +382,7 @@ def main():
     init()
 
     # multi-thread training here
-    my_ip = get_ip()
+    my_ip = utils.util.get_ip(test_ip_addr)
     threads = []
     for addr in peer_addrs:
         if addr == my_ip:

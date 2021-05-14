@@ -23,6 +23,8 @@ logger = logging.getLogger("local_train")
 # TO BE CHANGED
 # federated learning server listen port
 fed_listen_port = 8888
+# used for self ip address testing
+test_ip_addr = "10.150.187.13"
 # TO BE CHANGED FINISHED
 
 # NOT TO TOUCH VARIABLES BELOW
@@ -207,20 +209,6 @@ async def shutdown_count():
         await utils.util.http_client_post(trigger_url, body_data)
 
 
-def get_ip():
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    try:
-        # doesn't even have to be reachable
-        s.connect(('10.255.255.255', 1))
-        IP = s.getsockname()[0]
-        logger.debug("Detected IP address: " + IP)
-    except Exception:
-        IP = '127.0.0.1'
-    finally:
-        s.close()
-    return IP
-
-
 class MainHandler(web.RequestHandler):
 
     async def get(self):
@@ -273,7 +261,7 @@ def main():
     init()
 
     # multi-thread training here
-    my_ip = get_ip()
+    my_ip = utils.util.get_ip(test_ip_addr)
     threads = []
     for addr in peer_addrs:
         if addr == my_ip:

@@ -8,6 +8,7 @@ import hashlib
 import json
 import logging
 import random
+import socket
 import subprocess
 
 import numpy as np
@@ -269,3 +270,18 @@ def disturb_w(w):
         transformed_w = param * beta
         disturbed_w[name] = transformed_w
     return disturbed_w
+
+
+def get_ip(test_ip_addr):
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        # doesn't even have to be reachable
+        # s.connect(('10.255.255.255', 1))
+        s.connect((test_ip_addr, 1))
+        ip = s.getsockname()[0]
+        print("Detected IP address: " + ip)
+    except socket.error:
+        ip = '127.0.0.1'
+    finally:
+        s.close()
+    return ip

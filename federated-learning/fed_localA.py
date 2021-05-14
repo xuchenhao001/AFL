@@ -240,7 +240,7 @@ async def train(user_id, epochs, w_glob_local, w_locals, w_locals_per, hyperpara
                                    + "\n")
         start_time = time.time()
         if (iter + 1) % 10 == 0:  # update global model
-            from_ip = get_ip()
+            from_ip = utils.util.get_ip(test_ip_addr)
             await upload_local_w(user_id, iter, from_ip, w_glob_local, w_locals, w_locals_per,
                                                  hyperpara, start_time)
             return
@@ -389,21 +389,6 @@ async def upload_local_w(user_id, epochs, from_ip, w_glob_local, w_locals, w_loc
     return
 
 
-def get_ip():
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    try:
-        # doesn't even have to be reachable
-        # s.connect(('10.255.255.255', 1))
-        s.connect((test_ip_addr, 1))
-        ip = s.getsockname()[0]
-        print("Detected IP address: " + ip)
-    except socket.error:
-        ip = '127.0.0.1'
-    finally:
-        s.close()
-    return ip
-
-
 async def download_global_model(epochs):
     if epochs == g_train_global_model_epoch:
         detail = {
@@ -487,7 +472,7 @@ def main():
     init()
 
     # multi-thread training here
-    my_ip = get_ip()
+    my_ip = utils.util.get_ip(test_ip_addr)
     threads = []
     for addr in peer_addrs:
         if addr == my_ip:
