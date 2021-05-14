@@ -29,6 +29,8 @@ start_wait_time = 60
 fed_listen_port = 8888
 # used for self ip address testing
 test_ip_addr = "10.150.187.13"
+# sleep for several seconds before sleep
+exit_sleep = 300
 # TO BE CHANGED FINISHED
 
 # NOT TO TOUCH VARIABLES BELOW
@@ -334,6 +336,11 @@ class MultiTrainThread(threading.Thread):
         logger.debug("end thread")
 
 
+async def my_exit():
+    await gen.sleep(exit_sleep)  # sleep for a while before exit
+    os._exit(0)
+
+
 class TriggerHandler(web.RequestHandler, ABC):
 
     async def post(self):
@@ -357,8 +364,7 @@ class TriggerHandler(web.RequestHandler, ABC):
             detail = await shutdown_count()
         elif message == "shutdown":
             logger.info("########## PYTHON SHUTTING DOWN! ##########")
-            await gen.sleep(300)  # sleep 300 seconds before exit
-            sys.exit()
+            asyncio.ensure_future(my_exit())
 
         response = {"status": status, "detail": detail}
         in_json = json.dumps(response, sort_keys=True, indent=4, ensure_ascii=False).encode('utf8')
