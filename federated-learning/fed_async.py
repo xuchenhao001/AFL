@@ -45,6 +45,7 @@ g_train_global_model = None
 g_train_global_model_version = 0
 shutdown_count_num = 0
 fade_count = None  # for each epoch, record the number of submitted local model
+current_acc_local = 0
 
 
 def test(data):
@@ -217,7 +218,7 @@ async def aggregate(epochs, uuid, start_time, train_time, w_compressed):
     if g_train_global_model is None:
         w_glob = utils.util.decompress_tensor(w_compressed)
     else:
-        fade_c = calculate_fade_c(int(epochs))
+        fade_c = calculate_fade_c(int(epochs), uuid, w_compressed)
         logger.debug("calculated fade_c: %f" % fade_c)
         w_glob = FadeFedAvg(g_train_global_model, utils.util.decompress_tensor(w_compressed), fade_c)
     # save global model for further download (compressed)
@@ -242,27 +243,43 @@ async def aggregate(epochs, uuid, start_time, train_time, w_compressed):
     await utils.util.http_client_post(blockchain_server_url, body_data)
 
 
-def calculate_fade_c(epoch):
+def calculate_fade_c(epoch, uuid, w_compressed):
     global fade_count
-    # lock.acquire()
-    if fade_count is None:
-        fade_count = [0] * args.epochs
     fade_target = args.fade
-    fade_ratio = fade_count[epoch-1] / (args.num_users - 1)
-    if fade_target > 1:
-        fade_range = fade_target - 1
-        fade_c = fade_range * fade_ratio + 1
+    if fade_target == -1:  # -1 means fade dynamic setting
+        # dynamic fade setting, test new acc_local first
+        w_glob = utils.util.decompress_tensor(w_compressed)
+        net_glob.load_state_dict(w_glob)
+        net_glob.eval()
+        idx = int(uuid) - 1
+        acc_local, acc_local_skew1, acc_local_skew2, acc_local_skew3, acc_local_skew4 = \
+            utils.util.test_img(test_users, skew_users, idx, net_glob, dataset_test, args)
+        if acc_local > current_acc_local:
+            fade_c = 1.5
+        elif acc_local < current_acc_local:
+            fade_c = 0.5
+        else:
+            fade_c = 1.0
+        return fade_c
     else:
-        fade_range = 1 - fade_target
-        fade_c = 1 - fade_range * fade_ratio
-    fade_count[epoch-1] += 1
-    # lock.release()
-    return fade_c
+        # static fade setting
+        if fade_count is None:
+            fade_count = [0] * args.epochs
+        fade_ratio = fade_count[epoch - 1] / (args.num_users - 1)
+        if fade_target > 1:
+            fade_range = fade_target - 1
+            fade_c = fade_range * fade_ratio + 1
+        else:
+            fade_range = 1 - fade_target
+            fade_c = 1 - fade_range * fade_ratio
+        fade_count[epoch - 1] += 1
+        return fade_c
 
 
 # STEP #7
 async def round_finish(uuid, epochs):
     global global_model_hash
+    global current_acc_local
     logger.debug('Download latest global model for user: %s, epoch: %s.' % (uuid, epochs))
 
     # download global model
@@ -302,6 +319,7 @@ async def round_finish(uuid, epochs):
     idx = int(uuid) - 1
     acc_local, acc_local_skew1, acc_local_skew2, acc_local_skew3, acc_local_skew4 = \
         utils.util.test_img(test_users, skew_users, idx, net_glob, dataset_test, args)
+    current_acc_local = acc_local
     test_time = time.time() - test_start_time
 
     # before start next round, record the time

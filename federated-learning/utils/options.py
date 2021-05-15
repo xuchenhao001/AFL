@@ -39,7 +39,7 @@ def args_parser():
                                                                        'or CRITICAL')
 
     # customized parameters
-    parser.add_argument('--fade', type=float, default=1.5, help="fade coefficient (between 0.0 to 2.0)")
+    parser.add_argument('--fade', type=float, default=-1, help="static fade coefficient, -1 means dynamic")
     # total dataset training size: MNIST: 6000, CIFAR-10: 5000, UCI: 3000, REALWORLD: 4000
     parser.add_argument('--dataset_train_size', type=int, default=3000, help="total dataset training size")
     # total dataset test size: MNIST: 1000, CIFAR-10: 1000, UCI: 1000, REALWORLD: 1000

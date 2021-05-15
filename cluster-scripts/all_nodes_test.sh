@@ -33,6 +33,7 @@ function arrangeOutput(){
     mv output/ "${model}-${dataset}/${expname}"
 }
 
+
 function testFinish() {
     fileName=$1
     while : ; do
@@ -40,11 +41,11 @@ function testFinish() {
         if [[ $count -eq 0 ]]; then
             break
         fi
-        echo "[`date`] Process still active, sleep 300 seconds"
-        sleep 300
+        echo "[`date`] Process still active, sleep 60 seconds"
+        sleep 60
     done
-    sleep 60  # wait 60 seconds to make sure all nodes are finished.
 }
+
 
 function main() {
     for i in "${!TestSchema[@]}"; do
