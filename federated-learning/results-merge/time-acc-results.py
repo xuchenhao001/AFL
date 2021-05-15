@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-# Python version: 3.6
 import os
 import re
 
@@ -62,10 +59,10 @@ def extract_by_timeline(result_value_dfs, sampling_frequency, final_time):
 
 def main():
     sampling_frequency = 10  # sampling frequency (seconds)
-    final_time = 300
+    final_time = 200
     model_name = "mlp"
     dataset_name = "mnist"
-    experiments = ["fed_async", "fed_sync", "fed_localA", "local_train"]
+    experiments = ["fed_async", "fed_avg", "fed_sync", "fed_localA", "local_train"]
     # experiments = ["fed_async_f05", "fed_async_f10", "fed_async_f15"]
     for experiment in experiments:
         result_lines = extract_file_lines(model_name, dataset_name, experiment)
