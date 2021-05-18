@@ -21,8 +21,8 @@ x = [value * 10 for value in x]
 
 fig, axes = plt.subplots()
 
-legendFont = font_manager.FontProperties(family='Times New Roman', weight='bold', style='normal', size=15)
-xylabelFont = font_manager.FontProperties(family='Times New Roman', weight='bold', style='normal', size=17)
+legendFont = font_manager.FontProperties(family='Times New Roman', weight='bold', style='normal', size=17)
+xylabelFont = font_manager.FontProperties(family='Times New Roman', weight='bold', style='normal', size=19)
 csXYLabelFont = {'fontproperties': xylabelFont}
 
 axes.plot(x, fed_async, label="Dynamic", linewidth=3)
@@ -37,6 +37,7 @@ axes.set_ylabel("Mean of Test Accuracy (%)", **csXYLabelFont)
 
 plt.xticks(family='Times New Roman', fontsize=15)
 plt.yticks(family='Times New Roman', fontsize=15)
+plt.tight_layout()
 plt.ylim(80)
 plt.legend(prop=legendFont)
 plt.grid()

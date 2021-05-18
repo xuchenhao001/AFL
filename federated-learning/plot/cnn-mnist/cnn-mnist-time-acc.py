@@ -20,13 +20,13 @@ x = [value * 10 for value in x]
 
 fig, axes = plt.subplots()
 
-legendFont = font_manager.FontProperties(family='Times New Roman', weight='bold', style='normal', size=15)
-xylabelFont = font_manager.FontProperties(family='Times New Roman', weight='bold', style='normal', size=17)
+legendFont = font_manager.FontProperties(family='Times New Roman', weight='bold', style='normal', size=17)
+xylabelFont = font_manager.FontProperties(family='Times New Roman', weight='bold', style='normal', size=19)
 csXYLabelFont = {'fontproperties': xylabelFont}
 
-axes.plot(x, fed_async, label="AFL", linewidth=3)
+axes.plot(x, fed_async, label="BAFL", linewidth=3)
+axes.plot(x, fed_sync, label="BSFL", linestyle='--', alpha=0.5)
 axes.plot(x, fed_avg, label="FedAVG", linestyle='--', alpha=0.5)
-axes.plot(x, fed_sync, label="SFL", linestyle='--', alpha=0.5)
 axes.plot(x, fed_localA, label="APFL", linestyle='--', alpha=0.5)
 axes.plot(x, local_train, label="Local Training", linestyle='--', alpha=0.5)
 
@@ -35,6 +35,7 @@ axes.set_ylabel("Mean of Test Accuracy (%)", **csXYLabelFont)
 
 plt.xticks(family='Times New Roman', fontsize=15)
 plt.yticks(family='Times New Roman', fontsize=15)
+plt.tight_layout()
 plt.ylim(80)
 plt.legend(prop=legendFont)
 plt.grid()
