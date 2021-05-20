@@ -26,8 +26,8 @@ csXYLabelFont = {'fontproperties': xylabelFont}
 width = 0.15  # the width of the bars
 axes.bar([(p - width * 2) for p in range(len(x))], height=fed_async, width=width, label="BAFL", hatch='x')
 axes.bar([p - width for p in range(len(x))], height=fed_sync, width=width, label="BSFL", hatch='o')
-axes.bar(range(len(x)), height=fed_avg, width=width, label="FedAVG", hatch='+')
-axes.bar([p + width for p in range(len(x))], height=fed_localA, width=width, label="APFL", hatch='*')
+axes.bar(range(len(x)), height=fed_localA, width=width, label="APFL", hatch='+')
+axes.bar([p + width for p in range(len(x))], height=fed_avg, width=width, label="FedAVG", hatch='*')
 axes.bar([(p + width * 2) for p in range(len(x))], height=local_train, width=width, label="Local Training", hatch='/')
 
 plt.xticks(range(len(x)), x)
