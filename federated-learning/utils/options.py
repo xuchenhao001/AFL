@@ -26,7 +26,7 @@ def args_parser():
                         help="Whether use max pooling rather than strided convolutions")
     parser.add_argument('--hyper', type=float, default=0.3, help='hypermeter alpha')
 
-    # support dataset: "cifar", "mnist"
+    # support dataset: "cifar", "mnist", "uci", "realworld"
     parser.add_argument('--dataset', type=str, default='cifar', help="name of dataset")
     parser.add_argument('--iid', action='store_true', help='whether i.i.d or not')
     parser.add_argument('--num_classes', type=int, default=10, help="number of classes")
@@ -42,7 +42,7 @@ def args_parser():
     parser.add_argument('--fade', type=float, default=-1, help="static fade coefficient, -1 means dynamic")
     # total dataset training size: MNIST: 6000, CIFAR-10: 5000, UCI: 3000, REALWORLD: 4000
     parser.add_argument('--dataset_train_size', type=int, default=3000, help="total dataset training size")
-    # total dataset test size: MNIST: 1000, CIFAR-10: 1000, UCI: 1000, REALWORLD: 1000
+    # total dataset test size: default 500
     parser.add_argument('--dataset_test_size', type=int, default=500, help="total dataset test size")
     # ip address that is used to test local IP
     parser.add_argument('--test_ip_addr', type=str, default="10.150.187.13", help="ip address used to test local IP")

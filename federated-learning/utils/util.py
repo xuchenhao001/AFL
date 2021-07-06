@@ -164,21 +164,17 @@ def model_loader(model_name, dataset_name, device, num_channels, num_classes, im
 def test_img(test_users, skew_users, idx, net_glob, dataset_test, args):
     if args.iid:
         idx_total = [test_users[idx]]
-        correct = test_img_total(net_glob, dataset_test, idx_total, args)
-        acc_local = torch.div(100.0 * correct[0], len(test_users[idx])).item()
+        acc_list, _ = test_img_total(net_glob, dataset_test, idx_total, args)
+        acc_local = acc_list[0].item()
         return acc_local, 0.0, 0.0, 0.0, 0.0
     else:
         idx_total = [test_users[idx], skew_users[0][idx], skew_users[1][idx], skew_users[2][idx], skew_users[3][idx]]
-        correct = test_img_total(net_glob, dataset_test, idx_total, args)
-        acc_local = torch.div(100.0 * correct[0], len(test_users[idx])).item()
-        acc_local_skew1 = torch.div(100.0 * (correct[0] + correct[1]), (len(test_users[idx]) +
-                                                                        len(skew_users[0][idx]))).item()
-        acc_local_skew2 = torch.div(100.0 * (correct[0] + correct[2]), (len(test_users[idx]) +
-                                                                        len(skew_users[1][idx]))).item()
-        acc_local_skew3 = torch.div(100.0 * (correct[0] + correct[3]), (len(test_users[idx]) +
-                                                                        len(skew_users[2][idx]))).item()
-        acc_local_skew4 = torch.div(100.0 * (correct[0] + correct[4]), (len(test_users[idx]) +
-                                                                        len(skew_users[3][idx]))).item()
+        acc_list, _ = test_img_total(net_glob, dataset_test, idx_total, args)
+        acc_local = acc_list[0].item()
+        acc_local_skew1 = acc_list[1].item()
+        acc_local_skew2 = acc_list[2].item()
+        acc_local_skew3 = acc_list[3].item()
+        acc_local_skew4 = acc_list[4].item()
         return acc_local, acc_local_skew1, acc_local_skew2, acc_local_skew3, acc_local_skew4
 
 

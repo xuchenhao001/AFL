@@ -26,44 +26,29 @@ def test_img(net_g, dataset_test, test_indices, args):
         y_pred = log_probs.data.max(1, keepdim=True)[1]
         correct += y_pred.eq(target.data.view_as(y_pred)).long().cpu().sum()
 
-    test_loss /= len(data_loader.dataset)
-    accuracy = 100.00 * correct / len(data_loader.dataset)
-    if args.verbose:
-        print('\nTest set: Average loss: {:.4f} \nAccuracy: {}/{} ({:.2f}%)\n'.format(
-            test_loss, correct, len(data_loader.dataset), accuracy))
-    return accuracy, test_loss
+    # test_loss /= len(data_loader.dataset)
+    # accuracy = 100.00 * correct / len(data_loader.dataset)
+    return correct, test_loss
 
 
 def test_img_total(net_g, dataset_test, idx_list, args):
-    net_g.eval()
-    subset_idx = [0]
-    idx_total = []
+    accuracy_list = []
+    test_loss_list = []
+    correct_test_local = 0
+    loss_test_local = 0
     for i in range(len(idx_list)):
-        subset_idx.append(subset_idx[-1] + len(idx_list[i]))
-        idx_total += idx_list[i]
+        correct_test, loss_test = test_img(net_g, dataset_test, idx_list[i], args)
+        if i == 0:
+            correct_test_local = correct_test
+            accuracy_local = 100.0 * correct_test_local / len(idx_list[0])
+            accuracy_list.append(accuracy_local)
+            loss_test_local = loss_test
+            loss_local = 100.0 * loss_test_local / len(idx_list[0])
+            test_loss_list.append(loss_local)
+        else:
+            accuracy_skew = 100.0 * (correct_test_local + correct_test) / (len(idx_list[0]) + len(idx_list[i]))
+            accuracy_list.append(accuracy_skew)
+            loss_skew = 100.0 * (loss_test_local + loss_test) / (len(idx_list[0]) + len(idx_list[i]))
+            test_loss_list.append(loss_skew)
 
-    test_loss = [0] * len(idx_list)
-    correct = [0] * len(idx_list)
-
-    dataset = DatasetSplit(dataset_test, idx_total)
-    data_loader = DataLoader(dataset, batch_size=args.bs)
-
-    y_target = []
-    y_pred = []
-    for idx, (data, target) in enumerate(data_loader):
-        data = data.detach().clone().type(torch.FloatTensor)
-        if args.gpu != -1:
-            data, target = data.to(args.device), target.to(args.device)
-        log_probs = net_g(data)
-        y_target.append(target)
-        pred = log_probs.data.max(1, keepdim=True)[1]
-        y_pred.append(pred)
-
-    y_target = torch.cat(y_target)
-    y_pred = torch.cat(y_pred)
-    y_pred = y_pred.squeeze(1)
-
-    for i in range(len(idx_list)):
-        correct[i] = sum(y_target[subset_idx[i]:subset_idx[i + 1]] == y_pred[subset_idx[i]:subset_idx[i + 1]])
-
-    return correct
+    return accuracy_list, test_loss_list

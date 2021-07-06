@@ -60,7 +60,7 @@ def get_indices(labels, user_labels, n_samples):
 
 
 def noniid_onepass(dataset_train, dataset_train_size, dataset_test, dataset_test_size, num_users, dataset_name='mnist',
-                   kept_class=3):
+                   kept_class=4):
     train_users = {}
     test_users = {}
     skew_users1 = {}
@@ -93,8 +93,8 @@ def noniid_onepass(dataset_train, dataset_train_size, dataset_test, dataset_test
         data_classes = 0
 
     labels = list(range(data_classes))
-    train_samples = int(dataset_train_size / data_classes)
-    test_samples = int(dataset_test_size / data_classes)
+    train_samples = int(dataset_train_size / kept_class)
+    test_samples = int(dataset_test_size / kept_class)
 
     for i in range(num_users):
         user_labels = np.random.choice(labels, size=kept_class, replace=False)
@@ -102,10 +102,10 @@ def noniid_onepass(dataset_train, dataset_train_size, dataset_test, dataset_test
         train_indices = get_indices(train_labels, user_labels, n_samples=train_samples)
         test_indices = get_indices(test_labels, user_labels, n_samples=test_samples)
 
-        skew1_indices = get_indices(test_labels, skew_labels, n_samples=int(test_samples * skew1_pct))
-        skew2_indices = get_indices(test_labels, skew_labels, n_samples=int(test_samples * skew2_pct))
-        skew3_indices = get_indices(test_labels, skew_labels, n_samples=int(test_samples * skew3_pct))
-        skew4_indices = get_indices(test_labels, skew_labels, n_samples=int(test_samples * skew4_pct))
+        skew1_indices = get_indices(test_labels, skew_labels, n_samples=test_samples*skew1_pct)
+        skew2_indices = get_indices(test_labels, skew_labels, n_samples=test_samples*skew2_pct)
+        skew3_indices = get_indices(test_labels, skew_labels, n_samples=test_samples*skew3_pct)
+        skew4_indices = get_indices(test_labels, skew_labels, n_samples=test_samples*skew4_pct)
 
         train_users[i] = train_indices
         test_users[i] = test_indices
@@ -148,30 +148,4 @@ def iid_onepass(dataset_train, dataset_train_size, dataset_test, dataset_test_si
         test_indices = get_indices(test_labels, labels, n_samples=test_samples)
         train_users[i] = train_indices
         test_users[i] = test_indices
-
     return train_users, test_users
-
-
-def cifar_iid(dataset, num_users):
-    """
-    Sample I.I.D. client data from CIFAR10 dataset
-    :param dataset:
-    :param num_users:
-    :return: dict of image index
-    """
-    num_items = int(len(dataset) / num_users)
-    dict_users, all_idxs = {}, [i for i in range(len(dataset))]
-    for i in range(num_users):
-        dict_users[i] = set(np.random.choice(all_idxs, num_items, replace=False))
-        all_idxs = list(set(all_idxs) - dict_users[i])
-    return dict_users
-
-
-if __name__ == '__main__':
-    dataset_train = datasets.MNIST('../data/mnist/', train=True, download=True,
-                                   transform=transforms.Compose([
-                                       transforms.ToTensor(),
-                                       transforms.Normalize((0.1307,), (0.3081,))
-                                   ]))
-    num = 100
-    d = mnist_noniid(dataset_train, num)
