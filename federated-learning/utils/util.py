@@ -20,7 +20,7 @@ from tornado import httpclient, gen
 
 from datasets.REALWORLD import REALWORLDDataset
 from datasets.UCI import UCIDataset
-from models.Nets import CNNCifar, CNNMnist, UCI_CNN, MLP
+from models.Nets import CNNCifar, CNNMnist, CNNFashion, UCI_CNN, MLP
 from models.test import test_img_total
 from utils.sampling import iid_onepass, noniid_onepass
 
@@ -106,6 +106,18 @@ def dataset_loader(dataset_name, dataset_train_size, dataset_test_size, isIID, n
         else:
             dict_users, test_users, skew_users = noniid_onepass(dataset_train, dataset_train_size, dataset_test,
                                                                 dataset_test_size, num_users, dataset_name='mnist')
+    elif dataset_name == 'fashion-mnist':
+        trans_fashion = transforms.Compose([transforms.ToTensor()])
+        mnist_data_path = os.path.join(real_path, "../../data/fashion-mnist/")
+        dataset_train = datasets.FashionMNIST(mnist_data_path, train=True, download=True, transform=trans_fashion)
+        dataset_test = datasets.FashionMNIST(mnist_data_path, train=False, download=True, transform=trans_fashion)
+        if isIID:
+            dict_users, test_users = iid_onepass(dataset_train, dataset_train_size, dataset_test, dataset_test_size,
+                                                 num_users, dataset_name='fashion-mnist')
+        else:
+            dict_users, test_users, skew_users = noniid_onepass(dataset_train, dataset_train_size, dataset_test,
+                                                                dataset_test_size, num_users,
+                                                                dataset_name='fashion-mnist')
     elif dataset_name == 'cifar':
         trans_cifar = transforms.Compose(
             [transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
@@ -149,6 +161,8 @@ def model_loader(model_name, dataset_name, device, num_channels, num_classes, im
         net_glob = CNNCifar(num_classes).to(device)
     elif model_name == 'cnn' and dataset_name == 'mnist':
         net_glob = CNNMnist(num_channels, num_classes).to(device)
+    elif model_name == 'cnn' and dataset_name == 'fashion-mnist':
+        net_glob = CNNFashion(num_channels, num_classes).to(device)
     elif model_name == 'cnn' and dataset_name == 'uci':
         net_glob = UCI_CNN(n_class=6).to(device)
     elif model_name == 'cnn' and dataset_name == 'realworld':
@@ -310,4 +324,3 @@ async def my_exit(exit_sleep):
     await gen.sleep(exit_sleep)  # sleep for a while before exit
     logger.info("########## PYTHON SHUTTING DOWN! ##########")
     os._exit(0)
-

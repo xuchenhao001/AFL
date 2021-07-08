@@ -83,6 +83,8 @@ def noniid_onepass(dataset_train, dataset_train_size, dataset_test, dataset_test
 
     if dataset_name == 'mnist':
         data_classes = 10
+    elif dataset_name == 'fashion-mnist':
+        data_classes = 10
     elif dataset_name == 'cifar':
         data_classes = 10
     elif dataset_name == 'uci':
@@ -102,10 +104,10 @@ def noniid_onepass(dataset_train, dataset_train_size, dataset_test, dataset_test
         train_indices = get_indices(train_labels, user_labels, n_samples=train_samples)
         test_indices = get_indices(test_labels, user_labels, n_samples=test_samples)
 
-        skew1_indices = get_indices(test_labels, skew_labels, n_samples=test_samples*skew1_pct)
-        skew2_indices = get_indices(test_labels, skew_labels, n_samples=test_samples*skew2_pct)
-        skew3_indices = get_indices(test_labels, skew_labels, n_samples=test_samples*skew3_pct)
-        skew4_indices = get_indices(test_labels, skew_labels, n_samples=test_samples*skew4_pct)
+        skew1_indices = get_indices(test_labels, skew_labels, n_samples=int(test_samples*skew1_pct))
+        skew2_indices = get_indices(test_labels, skew_labels, n_samples=int(test_samples*skew2_pct))
+        skew3_indices = get_indices(test_labels, skew_labels, n_samples=int(test_samples*skew3_pct))
+        skew4_indices = get_indices(test_labels, skew_labels, n_samples=int(test_samples*skew4_pct))
 
         train_users[i] = train_indices
         test_users[i] = test_indices
@@ -129,6 +131,8 @@ def iid_onepass(dataset_train, dataset_train_size, dataset_test, dataset_test_si
     test_labels = np.vstack((test_idxs, test_labels))
 
     if dataset_name == 'mnist':
+        data_classes = 10
+    elif dataset_name == 'fashion-mnist':
         data_classes = 10
     elif dataset_name == 'cifar':
         data_classes = 10
