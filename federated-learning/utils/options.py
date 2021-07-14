@@ -14,8 +14,8 @@ def args_parser():
     parser.add_argument('--momentum', type=float, default=0.5, help="SGD momentum (default: 0.5)")
     parser.add_argument('--split', type=str, default='user', help="train-test split type, user or sample")
 
-    # model arguments, support model: "cnn", "mlp"
-    parser.add_argument('--model', type=str, default='cnn', help='model name')
+    # model arguments, support model: "cnn", "mlp", "lstm"
+    parser.add_argument('--model', type=str, default='lstm', help='model name')
     # parser.add_argument('--model', type=str, default='mlp', help='model name')
     parser.add_argument('--kernel_num', type=int, default=9, help='number of each kind of kernel')
     parser.add_argument('--kernel_sizes', type=str, default='3,4,5',
@@ -26,8 +26,8 @@ def args_parser():
                         help="Whether use max pooling rather than strided convolutions")
     parser.add_argument('--hyper', type=float, default=0.3, help='hypermeter alpha')
 
-    # support dataset: "mnist", "fashion-mnist", "cifar", "uci", "realworld"
-    parser.add_argument('--dataset', type=str, default='fashion-mnist', help="name of dataset")
+    # support dataset: "mnist", "fashion-mnist", "cifar", "uci", "realworld", "loop"
+    parser.add_argument('--dataset', type=str, default='loop', help="name of dataset")
     parser.add_argument('--iid', action='store_true', help='whether i.i.d or not')
     parser.add_argument('--num_classes', type=int, default=10, help="number of classes")
     parser.add_argument('--num_channels', type=int, default=1, help="number of channels of imges")
@@ -40,10 +40,9 @@ def args_parser():
 
     # customized parameters
     parser.add_argument('--fade', type=float, default=-1, help="static fade coefficient, -1 means dynamic")
-    # total dataset training size: MNIST: 6000, FASHION-MNIST:6000, CIFAR-10: 5000, UCI: 3000, REALWORLD: 4000
-    parser.add_argument('--dataset_train_size', type=int, default=6000, help="total dataset training size")
-    # total dataset test size: default 500
-    parser.add_argument('--dataset_test_size', type=int, default=500, help="total dataset test size")
+    # total dataset training size: MNIST: 6000, FASHION-MNIST:6000, CIFAR-10: 5000, UCI: 3000, REALWORLD: 4000,
+    # LOOP: 1500
+    parser.add_argument('--dataset_train_size', type=int, default=1500, help="total dataset training size")
     # ip address that is used to test local IP
     parser.add_argument('--test_ip_addr', type=str, default="10.150.187.13", help="ip address used to test local IP")
     # sleep for several seconds before exit python

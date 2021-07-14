@@ -1,13 +1,8 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-# Python version: 3.6
-
-import torch
-from torch import nn, autograd
-from torch.utils.data import DataLoader, Dataset
+import time
 import numpy as np
-import random
-from sklearn import metrics
+import torch
+from torch import nn
+from torch.utils.data import DataLoader, Dataset
 
 
 class DatasetSplit(Dataset):
@@ -54,3 +49,53 @@ class LocalUpdate(object):
             epoch_loss.append(sum(batch_loss)/len(batch_loss))
         return net.state_dict(), sum(epoch_loss) / len(epoch_loss)
 
+
+class LocalUpdateLSTM(object):
+    def __init__(self, args, dataset=None):
+        self.args = args
+        self.loss_func = torch.nn.MSELoss()
+        self.selected_clients = []
+        self.ldr_train = DataLoader(dataset, batch_size=40, shuffle=True, drop_last=True)
+
+    def train(self, net):
+        optimizer = torch.optim.RMSprop(net.parameters(), lr=1e-5)
+        losses_train = []
+
+        # use_gpu = torch.cuda.is_available()
+        losses_epochs_train = []
+        pre_time = time.time()
+        is_best_model = 0
+        for epoch in range(self.args.local_ep):
+            print("train epoch: {}".format(epoch))
+            losses_epoch_train = []
+            print("self.ldr_train len: {}".format(len(self.ldr_train)))
+            for batch_idx, (data, labels) in enumerate(self.ldr_train):
+                data = data.detach().clone().type(torch.FloatTensor)
+                data, labels = data.to(self.args.device), labels.to(self.args.device)
+            # for data in self.ldr_train:
+            #     inputs, labels = data
+            #     if use_gpu:
+            #         inputs, labels = Variable(inputs.cuda()), Variable(labels.cuda())
+            #     else:
+            #         inputs, labels = Variable(inputs), Variable(labels)
+                # test above
+                net.zero_grad()
+                outputs = net(data)
+                loss_train = self.loss_func(outputs, torch.squeeze(labels))
+                losses_train.append(loss_train.data)
+                losses_epoch_train.append(loss_train.data)
+                optimizer.zero_grad()
+                loss_train.backward()
+                optimizer.step()
+
+            avg_losses_epoch_train = sum(losses_epoch_train) / float(len(losses_epoch_train))
+            losses_epochs_train.append(avg_losses_epoch_train)
+            cur_time = time.time()
+            print('Epoch: {}, train_loss: {}, time: {}, best model: {}'.format(
+                epoch,
+                np.around(avg_losses_epoch_train, decimals=8),
+                np.around([cur_time - pre_time], decimals=2),
+                is_best_model))
+            pre_time = cur_time
+
+        return net.state_dict(), losses_train

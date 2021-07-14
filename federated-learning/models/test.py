@@ -1,20 +1,16 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-# @python: 3.6
-
+import numpy as np
 import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from models.Update import DatasetSplit
 
 
-def test_img(net_g, dataset_test, test_indices, args):
+def test_img(net_g, dataset_test, args, test_indices):
     net_g.eval()
     # testing
     test_loss = 0
     correct = 0
-    dataset = DatasetSplit(dataset_test, test_indices)
-    data_loader = DataLoader(dataset, batch_size=args.bs)
+    data_loader = DataLoader(DatasetSplit(dataset_test, test_indices), batch_size=args.bs)
     for idx, (data, target) in enumerate(data_loader):
         data = data.detach().clone().type(torch.FloatTensor)
         if args.gpu != -1:
@@ -31,13 +27,13 @@ def test_img(net_g, dataset_test, test_indices, args):
     return correct, test_loss
 
 
-def test_img_total(net_g, dataset_test, idx_list, args):
+def test_img_total(net_g, dataset_test, args, idx_list):
     accuracy_list = []
     test_loss_list = []
     correct_test_local = 0
     loss_test_local = 0
     for i in range(len(idx_list)):
-        correct_test, loss_test = test_img(net_g, dataset_test, idx_list[i], args)
+        correct_test, loss_test = test_img(net_g, dataset_test, args, idx_list[i])
         if i == 0:
             correct_test_local = correct_test
             accuracy_local = 100.0 * correct_test_local / len(idx_list[0])
@@ -52,3 +48,30 @@ def test_img_total(net_g, dataset_test, idx_list, args):
             test_loss_list.append(loss_skew)
 
     return accuracy_list, test_loss_list
+
+
+def test_lstm(net_g, dataset_test, args):
+    data_loader = DataLoader(dataset_test, batch_size=40, shuffle=True, drop_last=True)
+    losses_mse = []
+    losses_mae = []
+    for idx, (data, target) in enumerate(data_loader):
+        data = data.detach().clone().type(torch.FloatTensor)
+        if args.gpu != -1:
+            data, target = data.to(args.device), target.to(args.device)
+        outputs = net_g(data)
+        loss_MSE = torch.nn.MSELoss()
+        loss_MAE = torch.nn.L1Loss()
+        loss_mse = loss_MSE(outputs, torch.squeeze(target))
+        loss_mae = loss_MAE(outputs, torch.squeeze(target))
+        losses_mse.append(loss_mse.cpu().data.numpy())
+        losses_mae.append(loss_mae.cpu().data.numpy())
+
+    # losses_l1 = np.array(losses_mae)
+    loss_mae_mean = np.mean(losses_mae)
+    # losses_mse = np.array(losses_mse)
+    loss_mse_mean = np.mean(losses_mse)
+    # mean_l1 = np.mean(losses_l1) * max_speed
+    # std_l1 = np.std(losses_l1) * max_speed
+
+    print('Tested: MSE_loss: {}, MAE_mean: {}'.format(loss_mse_mean, loss_mae_mean))
+    return loss_mse_mean, loss_mae_mean

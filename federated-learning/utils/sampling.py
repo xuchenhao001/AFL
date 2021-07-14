@@ -61,6 +61,10 @@ def get_indices(labels, user_labels, n_samples):
 
 def noniid_onepass(dataset_train, dataset_train_size, dataset_test, dataset_test_size, num_users, dataset_name='mnist',
                    kept_class=4):
+
+    if dataset_name == 'loop':
+        return None, None, None
+
     train_users = {}
     test_users = {}
     skew_users1 = {}
@@ -119,6 +123,10 @@ def noniid_onepass(dataset_train, dataset_train_size, dataset_test, dataset_test
 
 
 def iid_onepass(dataset_train, dataset_train_size, dataset_test, dataset_test_size, num_users, dataset_name='mnist'):
+
+    if dataset_name == 'loop':
+        return None, None
+
     train_users = {}
     test_users = {}
 

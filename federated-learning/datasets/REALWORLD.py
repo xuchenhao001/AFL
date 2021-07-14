@@ -45,7 +45,6 @@ class REALWORLDDataset(Dataset):
             else:
                 data.append((partitionedData[4]))
                 label.append((partitionedLabel[4]))
-
         data = np.vstack(data)
         label = np.hstack(label)
 
@@ -62,6 +61,6 @@ if __name__ == '__main__':
     real_path = os.path.dirname(os.path.realpath(__file__))
     realworld_client_data_path = os.path.join(real_path, "../../data/realworld_client/")
     dataset = REALWORLDDataset(data_path=realworld_client_data_path)
-    print(dataset[0][0].shape, dataset[0][1])
-    print(len(dataset))
-    print(Counter(dataset.targets))
+    # print(dataset[0][0].shape, dataset[0][1])
+    # print(len(dataset))
+    # print(Counter(dataset.targets))

@@ -13,15 +13,19 @@ import subprocess
 
 import numpy as np
 import os
+
+import pandas as pd
 import torch
 
+from torch.utils.data import TensorDataset, DataLoader
 from torchvision import datasets, transforms
 from tornado import httpclient, gen
 
+from datasets.LOOP import LOOPDataset
 from datasets.REALWORLD import REALWORLDDataset
 from datasets.UCI import UCIDataset
-from models.Nets import CNNCifar, CNNMnist, CNNFashion, UCI_CNN, MLP
-from models.test import test_img_total
+from models.Nets import CNNCifar, CNNMnist, CNNFashion, UCI_CNN, MLP, LSTM
+from models.test import test_img_total, test_lstm
 from utils.sampling import iid_onepass, noniid_onepass
 
 # format colorful log output
@@ -85,7 +89,8 @@ logging.setLoggerClass(ColoredLogger)
 logger = logging.getLogger("util")
 
 
-def dataset_loader(dataset_name, dataset_train_size, dataset_test_size, isIID, num_users):
+def dataset_loader(dataset_name, dataset_train_size, isIID, num_users):
+    dataset_test_size = int(dataset_train_size * 0.25)  # the dataset size ratio of the training to the test is 8:2
     logger.info("Load dataset [%s] with training data size [%d], test data size [%d]" %
                 (dataset_name, dataset_train_size, dataset_test_size))
     dataset_train = None
@@ -102,10 +107,10 @@ def dataset_loader(dataset_name, dataset_train_size, dataset_test_size, isIID, n
         dataset_test = datasets.MNIST(mnist_data_path, train=False, download=True, transform=trans_mnist)
         if isIID:
             dict_users, test_users = iid_onepass(dataset_train, dataset_train_size, dataset_test, dataset_test_size,
-                                                 num_users, dataset_name='mnist')
+                                                 num_users, dataset_name=dataset_name)
         else:
             dict_users, test_users, skew_users = noniid_onepass(dataset_train, dataset_train_size, dataset_test,
-                                                                dataset_test_size, num_users, dataset_name='mnist')
+                                                                dataset_test_size, num_users, dataset_name=dataset_name)
     elif dataset_name == 'fashion-mnist':
         trans_fashion = transforms.Compose([transforms.ToTensor()])
         mnist_data_path = os.path.join(real_path, "../../data/fashion-mnist/")
@@ -113,11 +118,11 @@ def dataset_loader(dataset_name, dataset_train_size, dataset_test_size, isIID, n
         dataset_test = datasets.FashionMNIST(mnist_data_path, train=False, download=True, transform=trans_fashion)
         if isIID:
             dict_users, test_users = iid_onepass(dataset_train, dataset_train_size, dataset_test, dataset_test_size,
-                                                 num_users, dataset_name='fashion-mnist')
+                                                 num_users, dataset_name=dataset_name)
         else:
             dict_users, test_users, skew_users = noniid_onepass(dataset_train, dataset_train_size, dataset_test,
                                                                 dataset_test_size, num_users,
-                                                                dataset_name='fashion-mnist')
+                                                                dataset_name=dataset_name)
     elif dataset_name == 'cifar':
         trans_cifar = transforms.Compose(
             [transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
@@ -126,30 +131,40 @@ def dataset_loader(dataset_name, dataset_train_size, dataset_test_size, isIID, n
         dataset_test = datasets.CIFAR10(cifar_data_path, train=False, download=True, transform=trans_cifar)
         if isIID:
             dict_users, test_users = iid_onepass(dataset_train, dataset_train_size, dataset_test, dataset_test_size,
-                                                 num_users, dataset_name='cifar')
+                                                 num_users, dataset_name=dataset_name)
         else:
             dict_users, test_users, skew_users = noniid_onepass(dataset_train, dataset_train_size, dataset_test,
-                                                                dataset_test_size, num_users, dataset_name='cifar')
+                                                                dataset_test_size, num_users, dataset_name=dataset_name)
     elif dataset_name == 'uci':
         uci_data_path = os.path.join(real_path, "../../data/uci/")
         dataset_train = UCIDataset(data_path=uci_data_path, phase='train')
         dataset_test = UCIDataset(data_path=uci_data_path, phase='eval')
         if isIID:
             dict_users, test_users = iid_onepass(dataset_train, dataset_train_size, dataset_test, dataset_test_size,
-                                                 num_users, dataset_name='uci')
+                                                 num_users, dataset_name=dataset_name)
         else:
             dict_users, test_users, skew_users = noniid_onepass(dataset_train, dataset_train_size, dataset_test,
-                                                                dataset_test_size, num_users, dataset_name='uci')
+                                                                dataset_test_size, num_users, dataset_name=dataset_name)
     elif dataset_name == 'realworld':
         realworld_data_path = os.path.join(real_path, "../../data/realworld_client/")
         dataset_train = REALWORLDDataset(data_path=realworld_data_path, phase='train')
         dataset_test = REALWORLDDataset(data_path=realworld_data_path, phase='eval')
         if isIID:
             dict_users, test_users = iid_onepass(dataset_train, dataset_train_size, dataset_test, dataset_test_size,
-                                                 num_users, dataset_name='realworld')
+                                                 num_users, dataset_name=dataset_name)
         else:
             dict_users, test_users, skew_users = noniid_onepass(dataset_train, dataset_train_size, dataset_test,
-                                                                dataset_test_size, num_users, dataset_name='realworld')
+                                                                dataset_test_size, num_users, dataset_name=dataset_name)
+    elif dataset_name == 'loop':
+        loop_data_path = os.path.join(real_path, "../../data/loop/")
+        dataset_train = LOOPDataset(data_path=loop_data_path, phase='train')
+        dataset_test = LOOPDataset(data_path=loop_data_path, phase='eval')
+        if isIID:
+            dict_users, test_users = iid_onepass(dataset_train, dataset_train_size, dataset_test, dataset_test_size,
+                                                 num_users, dataset_name=dataset_name)
+        else:
+            dict_users, test_users, skew_users = noniid_onepass(dataset_train, dataset_train_size, dataset_test,
+                                                                dataset_test_size, num_users, dataset_name=dataset_name)
     return dataset_train, dataset_test, dict_users, test_users, skew_users
 
 
@@ -167,6 +182,8 @@ def model_loader(model_name, dataset_name, device, num_channels, num_classes, im
         net_glob = UCI_CNN(n_class=6).to(device)
     elif model_name == 'cnn' and dataset_name == 'realworld':
         net_glob = UCI_CNN(n_class=8).to(device)
+    elif model_name == 'lstm' and dataset_name == 'loop':
+        net_glob = LSTM(img_size[1], img_size[1], img_size[1], output_last=True)
     elif model_name == 'mlp':
         len_in = 1
         for x in img_size:
@@ -175,15 +192,18 @@ def model_loader(model_name, dataset_name, device, num_channels, num_classes, im
     return net_glob
 
 
-def test_img(test_users, skew_users, idx, net_glob, dataset_test, args):
+def test_model(net_glob, dataset_test, args, test_users, skew_users, idx):
+    if test_users is None and skew_users is None:  # for LSTM
+        loss_mse, loss_mae = test_lstm(net_glob, dataset_test, args)
+        return loss_mse, loss_mae, 0.0, 0.0, 0.0
     if args.iid:
         idx_total = [test_users[idx]]
-        acc_list, _ = test_img_total(net_glob, dataset_test, idx_total, args)
+        acc_list, _ = test_img_total(net_glob, dataset_test, args, idx_total)
         acc_local = acc_list[0].item()
         return acc_local, 0.0, 0.0, 0.0, 0.0
     else:
         idx_total = [test_users[idx], skew_users[0][idx], skew_users[1][idx], skew_users[2][idx], skew_users[3][idx]]
-        acc_list, _ = test_img_total(net_glob, dataset_test, idx_total, args)
+        acc_list, _ = test_img_total(net_glob, dataset_test, args, idx_total)
         acc_local = acc_list[0].item()
         acc_local_skew1 = acc_list[1].item()
         acc_local_skew2 = acc_list[2].item()
@@ -289,7 +309,7 @@ def get_ip(test_ip_addr):
         # s.connect(('10.255.255.255', 1))
         s.connect((test_ip_addr, 1))
         ip = s.getsockname()[0]
-        print("Detected IP address: " + ip)
+        logger.debug("Detected IP address: " + ip)
     except socket.error:
         ip = '127.0.0.1'
     finally:

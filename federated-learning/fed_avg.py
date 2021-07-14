@@ -69,8 +69,7 @@ def init():
     global g_train_global_model_epoch
 
     dataset_train, dataset_test, dict_users, test_users, skew_users = \
-        utils.util.dataset_loader(args.dataset, args.dataset_train_size, args.dataset_test_size, args.iid,
-                                  args.num_users)
+        utils.util.dataset_loader(args.dataset, args.dataset_train_size, args.iid, args.num_users)
     if dict_users is None:
         logger.error('Error: unrecognized dataset')
         sys.exit()

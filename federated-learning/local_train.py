@@ -12,7 +12,7 @@ from tornado import ioloop, web
 
 import utils
 from utils.options import args_parser
-from models.Update import LocalUpdate
+from models.Update import LocalUpdate, LocalUpdateLSTM
 from utils.util import dataset_loader, model_loader, ColoredLogger
 
 logging.setLoggerClass(ColoredLogger)
@@ -59,9 +59,8 @@ def init():
     global skew_users
 
     dataset_train, dataset_test, dict_users, test_users, skew_users = \
-        utils.util.dataset_loader(args.dataset, args.dataset_train_size, args.dataset_test_size, args.iid,
-                                  args.num_users)
-    if dict_users is None:
+        utils.util.dataset_loader(args.dataset, args.dataset_train_size, args.iid, args.num_users)
+    if dataset_train is None:
         logger.error('Error: unrecognized dataset')
         sys.exit()
     img_size = dataset_train[0][0].shape
@@ -78,6 +77,7 @@ async def train(user_id):
     global g_init_time
 
     if user_id is None:
+        await asyncio.sleep(10)
         user_id = await fetch_user_id()
 
     # training for all epochs
@@ -87,9 +87,9 @@ async def train(user_id):
         if iter+1 == args.epochs:
             # for the first time do the training
             g_init_time[str(user_id)] = time.time()
-            net_glob.eval()
+            # net_glob.eval()
             acc_local, acc_local_skew1, acc_local_skew2, acc_local_skew3, acc_local_skew4 = \
-                utils.util.test_img(test_users, skew_users, idx, net_glob, dataset_test, args)
+                utils.util.test_model(net_glob, dataset_test, args, test_users, skew_users, idx)
             filename = "result-record_" + str(user_id) + ".txt"
             # first time clean the file
             open(filename, 'w').close()
@@ -111,7 +111,10 @@ async def train(user_id):
 
         logger.info("Epoch [" + str(iter+1) + "] train for user [" + str(user_id) + "]")
         train_start_time = time.time()
-        local = LocalUpdate(args=args, dataset=dataset_train, idxs=dict_users[user_id - 1])
+        if dict_users is not None:
+            local = LocalUpdate(args=args, dataset=dataset_train, idxs=dict_users[user_id - 1])
+        else:
+            local = LocalUpdateLSTM(args=args, dataset=dataset_train)
         w, loss = local.train(net=copy.deepcopy(net_glob).to(args.device))
         train_time = time.time() - train_start_time
 
@@ -119,7 +122,7 @@ async def train(user_id):
         test_start_time = time.time()
         idx = int(user_id) - 1
         acc_local, acc_local_skew1, acc_local_skew2, acc_local_skew3, acc_local_skew4 = \
-            utils.util.test_img(test_users, skew_users, idx, net_glob, dataset_test, args)
+            utils.util.test_model(net_glob, dataset_test, args, test_users, skew_users, idx)
 
         test_time = time.time() - test_start_time
 
@@ -252,17 +255,7 @@ def main():
     # init dataset and global model
     init()
 
-    # multi-thread training here
-    my_ip = utils.util.get_ip(test_ip_addr)
-    threads = []
-    for addr in peer_addrs:
-        if addr == my_ip:
-            thread_train = MultiTrainThread()
-            threads.append(thread_train)
-
-    # Start all threads
-    for thread in threads:
-        thread.start()
+    asyncio.ensure_future(train(None))
 
     app = web.Application([
         (r"/trigger", MainHandler),
