@@ -15,7 +15,7 @@ from tornado import ioloop, web, httpserver, gen
 
 import utils
 from utils.options import args_parser
-from models.Update import LocalUpdate
+from models.Update import LocalUpdate, LocalUpdateLSTM
 from models.Fed import FedAvg
 from utils.util import dataset_loader, model_loader, ColoredLogger
 
@@ -53,6 +53,7 @@ g_init_time = {}
 g_train_global_model = None
 g_train_global_model_epoch = None
 shutdown_count_num = 0
+start_sleep = 0
 exit_sleep = 0
 
 differenc1 = None
@@ -81,7 +82,7 @@ def init():
 
     dataset_train, dataset_test, dict_users, test_users, skew_users = \
         utils.util.dataset_loader(args.dataset, args.dataset_train_size, args.iid, args.num_users)
-    if dict_users is None:
+    if dataset_train is None:
         logger.error('Error: unrecognized dataset')
         sys.exit()
     img_size = dataset_train[0][0].shape
@@ -120,7 +121,7 @@ async def train(user_id, epochs, w_glob_local, w_locals, w_locals_per, hyperpara
         idx = int(user_id) - 1
         net_glob.eval()
         acc_local, acc_local_skew1, acc_local_skew2, acc_local_skew3, acc_local_skew4 = \
-            utils.util.test_img(test_users, skew_users, idx, net_glob, dataset_test, args)
+            utils.util.test_model(net_glob, dataset_test, args, test_users, skew_users, idx)
         filename = "result-record_" + str(user_id) + ".txt"
         # first time clean the file
         open(filename, 'w').close()
@@ -160,7 +161,7 @@ async def train(user_id, epochs, w_glob_local, w_locals, w_locals_per, hyperpara
 
     # training for all epochs
     for iter in reversed(range(epochs)):
-        logger.info("Epoch [" + str(iter+1) + "] train for user [" + str(user_id) + "]")
+        logger.info("Epoch [" + str(iter + 1) + "] train for user [" + str(user_id) + "]")
         train_start_time = time.time()
         # compute v_bar
         for j in w_glob.keys():
@@ -169,14 +170,20 @@ async def train(user_id, epochs, w_glob_local, w_locals, w_locals_per, hyperpara
 
         # train local global weight
         net_glob.load_state_dict(w_glob_local)
-        local = LocalUpdate(args=args, dataset=dataset_train, idxs=dict_users[user_id - 1])
+        if dict_users is not None:
+            local = LocalUpdate(args=args, dataset=dataset_train, idxs=dict_users[user_id - 1])
+        else:
+            local = LocalUpdateLSTM(args=args, dataset=dataset_train)
         w, loss = local.train(net=copy.deepcopy(net_glob).to(args.device))
         for j in w_glob.keys():
             w_glob_local[j] = copy.deepcopy(w[j])
 
         # train local model weight
         net_glob.load_state_dict(w_locals_per)
-        local = LocalUpdate(args=args, dataset=dataset_train, idxs=dict_users[user_id - 1])
+        if dict_users is not None:
+            local = LocalUpdate(args=args, dataset=dataset_train, idxs=dict_users[user_id - 1])
+        else:
+            local = LocalUpdateLSTM(args=args, dataset=dataset_train)
         w, loss = local.train(net=copy.deepcopy(net_glob).to(args.device))
         # loss_locals.append(copy.deepcopy(loss))
 
@@ -209,7 +216,7 @@ async def train(user_id, epochs, w_glob_local, w_locals, w_locals_per, hyperpara
         test_start_time = time.time()
         idx = int(user_id) - 1
         acc_local, acc_local_skew1, acc_local_skew2, acc_local_skew3, acc_local_skew4 = \
-            utils.util.test_img(test_users, skew_users, idx, net_glob, dataset_test, args)
+            utils.util.test_model(net_glob, dataset_test, args, test_users, skew_users, idx)
         test_time = time.time() - test_start_time
 
         # before start next round, record the time
@@ -238,7 +245,7 @@ async def train(user_id, epochs, w_glob_local, w_locals, w_locals_per, hyperpara
         if (iter + 1) % 10 == 0:  # update global model
             from_ip = utils.util.get_ip(test_ip_addr)
             await upload_local_w(user_id, iter, from_ip, w_glob_local, w_locals, w_locals_per,
-                                                 hyperpara, start_time)
+                                 hyperpara, start_time)
             return
 
     logger.info("########## ALL DONE! ##########")
@@ -251,26 +258,10 @@ async def train(user_id, epochs, w_glob_local, w_locals, w_locals_per, hyperpara
     await utils.util.http_client_post(trigger_url, body_data)
 
 
-class MultiTrainThread(threading.Thread):
-    def __init__(self, user_id, epochs, w_glob_local, w_locals, w_locals_per, hyperpara, start_time):
-        threading.Thread.__init__(self)
-        self.user_id = user_id
-        self.epochs = epochs
-        self.w_glob_local = w_glob_local
-        self.w_locals = w_locals
-        self.w_locals_per = w_locals_per
-        self.hyperpara = hyperpara
-        self.start_time = start_time
-
-    def run(self):
-        # time.sleep(start_wait_time)
-        logger.debug("start new thread")
-        loop = asyncio.new_event_loop()
-        if self.start_time is None:
-            self.start_time = time.time()
-        loop.run_until_complete(train(self.user_id, self.epochs, self.w_glob_local, self.w_locals, self.w_locals_per,
-                                      self.hyperpara, self.start_time))
-        logger.debug("end thread")
+async def start_train():
+    await asyncio.sleep(start_sleep)
+    start_time = time.time()
+    await train(None, None, None, None, None, None, start_time)
 
 
 def test(data):
@@ -409,13 +400,13 @@ class MainHandler(web.RequestHandler, ABC):
             detail = await download_global_model(data.get("epochs"))
         elif message == "upload_local_w":
             asyncio.ensure_future(average_local_w(data.get("user_id"), data.get("epochs"), data.get("from_ip"),
-                                  data.get("w_glob_local"), data.get("w_locals"), data.get("w_locals_per"),
-                                  data.get("hyperpara"), data.get("start_time")))
+                                                  data.get("w_glob_local"), data.get("w_locals"),
+                                                  data.get("w_locals_per"),
+                                                  data.get("hyperpara"), data.get("start_time")))
         elif message == "release_global_w":
-            thread_train = MultiTrainThread(data.get("user_id"), data.get("epochs"), data.get("w_glob_local"),
-                                            data.get("w_locals"), data.get("w_locals_per"), data.get("hyperpara"),
-                                            data.get("start_time"))
-            thread_train.start()
+            asyncio.ensure_future(train(data.get("user_id"), data.get("epochs"), data.get("w_glob_local"),
+                                        data.get("w_locals"), data.get("w_locals_per"), data.get("hyperpara"),
+                                        data.get("start_time")))
         elif message == "shutdown_python":
             detail = await utils.util.shutdown_count(data.get("uuid"), data.get("from_ip"), fed_listen_port, lock,
                                                      args.num_users)
@@ -432,6 +423,7 @@ def main():
     global peer_address_list
     global trigger_url
     global test_ip_addr
+    global start_sleep
     global exit_sleep
 
     # parse args
@@ -452,22 +444,13 @@ def main():
 
     # parse test ip addr
     test_ip_addr = args.test_ip_addr
+    start_sleep = args.start_sleep
     exit_sleep = args.exit_sleep
 
     # init dataset and global model
     init()
 
-    # multi-thread training here
-    my_ip = utils.util.get_ip(test_ip_addr)
-    threads = []
-    for addr in peer_addrs:
-        if addr == my_ip:
-            thread_train = MultiTrainThread(None, None, None, None, None, None, None)
-            threads.append(thread_train)
-
-    # Start all threads
-    for thread in threads:
-        thread.start()
+    asyncio.ensure_future(start_train())
 
     app = web.Application([
         (r"/trigger", MainHandler),
@@ -480,4 +463,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

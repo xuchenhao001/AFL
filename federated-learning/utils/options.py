@@ -45,6 +45,8 @@ def args_parser():
     parser.add_argument('--dataset_train_size', type=int, default=1500, help="total dataset training size")
     # ip address that is used to test local IP
     parser.add_argument('--test_ip_addr', type=str, default="10.150.187.13", help="ip address used to test local IP")
+    # sleep for several seconds before start train
+    parser.add_argument('--start_sleep', type=int, default=10, help="sleep for seconds before start train")
     # sleep for several seconds before exit python
     parser.add_argument('--exit_sleep', type=int, default=300, help="sleep for seconds before exit python")
     args = parser.parse_args()

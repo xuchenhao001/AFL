@@ -38,6 +38,7 @@ g_user_id = 0
 lock = threading.Lock()
 g_init_time = {}
 shutdown_count_num = 0
+start_sleep = 0
 exit_sleep = 0
 
 
@@ -77,7 +78,6 @@ async def train(user_id):
     global g_init_time
 
     if user_id is None:
-        await asyncio.sleep(10)
         user_id = await fetch_user_id()
 
     # training for all epochs
@@ -159,15 +159,9 @@ async def train(user_id):
     await utils.util.http_client_post(trigger_url, body_data)
 
 
-class MultiTrainThread(threading.Thread):
-    def __init__(self):
-        threading.Thread.__init__(self)
-
-    def run(self):
-        logger.debug("start new thread")
-        loop = asyncio.new_event_loop()
-        loop.run_until_complete(train(None))
-        logger.debug("end thread")
+async def start_train():
+    await asyncio.sleep(start_sleep)
+    await train(None)
 
 
 def test(data):
@@ -230,6 +224,7 @@ def main():
     global peer_address_list
     global trigger_url
     global test_ip_addr
+    global start_sleep
     global exit_sleep
 
     # parse args
@@ -250,12 +245,13 @@ def main():
 
     # parse test ip addr
     test_ip_addr = args.test_ip_addr
+    start_sleep = args.start_sleep
     exit_sleep = args.exit_sleep
 
     # init dataset and global model
     init()
 
-    asyncio.ensure_future(train(None))
+    asyncio.ensure_future(start_train())
 
     app = web.Application([
         (r"/trigger", MainHandler),
