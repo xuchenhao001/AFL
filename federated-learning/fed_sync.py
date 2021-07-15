@@ -11,10 +11,11 @@ from tornado import ioloop, web, httpserver
 
 import utils.util
 from utils.options import args_parser
-from models.Update import LocalUpdate
+from utils.util import dataset_loader, model_loader, ColoredLogger
+from models.Update import LocalUpdate, LocalUpdateLSTM
 from models.Fed import FedAvg
 
-logging.setLoggerClass(utils.util.ColoredLogger)
+logging.setLoggerClass(ColoredLogger)
 logger = logging.getLogger("fed_sync")
 
 # TO BE CHANGED
@@ -86,14 +87,13 @@ def init():
     args.num_users = len(peer_address_list)
 
     dataset_train, dataset_test, dict_users, test_users, skew_users = \
-        utils.util.dataset_loader(args.dataset, args.dataset_train_size, args.iid, args.num_users)
-    if dict_users is None:
+        dataset_loader(args.dataset, args.dataset_train_size, args.iid, args.num_users)
+    if dataset_train is None:
         logger.error('Error: unrecognized dataset')
         sys.exit()
 
     img_size = dataset_train[0][0].shape
-    net_glob = utils.util.model_loader(args.model, args.dataset, args.device, args.num_channels, args.num_classes,
-                                       img_size)
+    net_glob = model_loader(args.model, args.dataset, args.device, args.num_channels, args.num_classes, img_size)
     if net_glob is None:
         logger.error('Error: unrecognized model')
         sys.exit()
@@ -145,7 +145,7 @@ async def train(uuid, epochs, start_time):
         g_init_time[str(uuid)] = start_time
         net_glob.eval()
         acc_local, acc_local_skew1, acc_local_skew2, acc_local_skew3, acc_local_skew4 = \
-            utils.util.test_img(test_users, skew_users, idx, net_glob, dataset_test, args)
+            utils.util.test_model(net_glob, dataset_test, args, test_users, skew_users, idx)
         filename = "result-record_" + uuid + ".txt"
         # first time clean the file
         open(filename, 'w').close()
@@ -165,7 +165,10 @@ async def train(uuid, epochs, start_time):
                                    + " <acc_local_skew4> " + str(acc_local_skew4)[:8]
                                    + "\n")
 
-    local = LocalUpdate(args=args, dataset=dataset_train, idxs=dict_users[idx])
+    if dict_users is not None:
+        local = LocalUpdate(args=args, dataset=dataset_train, idxs=dict_users[idx])
+    else:
+        local = LocalUpdateLSTM(args=args, dataset=dataset_train)
     train_start_time = time.time()
     w_local, loss = local.train(net=copy.deepcopy(net_glob).to(args.device))
     # fake attackers
@@ -285,7 +288,7 @@ async def round_finish(uuid, epochs):
     test_start_time = time.time()
     idx = int(uuid) - 1
     acc_local, acc_local_skew1, acc_local_skew2, acc_local_skew3, acc_local_skew4 = \
-        utils.util.test_img(test_users, skew_users, idx, net_glob, dataset_test, args)
+        utils.util.test_model(net_glob, dataset_test, args, test_users, skew_users, idx)
     test_time = time.time() - test_start_time
 
     # before start next round, record the time
@@ -446,8 +449,7 @@ class MainHandler(web.RequestHandler):
         elif message == "global_model_update":
             asyncio.ensure_future(round_finish(data.get("uuid"), data.get("epochs")))
         elif message == "shutdown":
-            logger.info("########## PYTHON SHUTTING DOWN! ##########")
-            sys.exit()
+            asyncio.ensure_future(utils.util.my_exit(args.exit_sleep))
         return
 
 

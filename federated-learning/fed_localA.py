@@ -11,7 +11,7 @@ from abc import ABC
 import numpy as np
 import threading
 import torch
-from tornado import ioloop, web, httpserver, gen
+from tornado import ioloop, web, httpserver
 
 import utils
 from utils.options import args_parser
@@ -31,7 +31,6 @@ fed_listen_port = 8888
 
 # NOT TO TOUCH VARIABLES BELOW
 trigger_url = ""
-test_ip_addr = ""
 peer_address_list = []
 g_user_id = 0
 lock = threading.Lock()
@@ -52,9 +51,6 @@ g_train_time = {}
 g_init_time = {}
 g_train_global_model = None
 g_train_global_model_epoch = None
-shutdown_count_num = 0
-start_sleep = 0
-exit_sleep = 0
 
 differenc1 = None
 differenc2 = None
@@ -81,7 +77,7 @@ def init():
     global g_train_global_model_epoch
 
     dataset_train, dataset_test, dict_users, test_users, skew_users = \
-        utils.util.dataset_loader(args.dataset, args.dataset_train_size, args.iid, args.num_users)
+        dataset_loader(args.dataset, args.dataset_train_size, args.iid, args.num_users)
     if dataset_train is None:
         logger.error('Error: unrecognized dataset')
         sys.exit()
@@ -243,13 +239,13 @@ async def train(user_id, epochs, w_glob_local, w_locals, w_locals_per, hyperpara
                                    + "\n")
         start_time = time.time()
         if (iter + 1) % 10 == 0:  # update global model
-            from_ip = utils.util.get_ip(test_ip_addr)
+            from_ip = utils.util.get_ip(args.test_ip_addr)
             await upload_local_w(user_id, iter, from_ip, w_glob_local, w_locals, w_locals_per,
                                  hyperpara, start_time)
             return
 
     logger.info("########## ALL DONE! ##########")
-    from_ip = utils.util.get_ip(test_ip_addr)
+    from_ip = utils.util.get_ip(args.test_ip_addr)
     body_data = {
         'message': 'shutdown_python',
         'uuid': user_id,
@@ -259,7 +255,7 @@ async def train(user_id, epochs, w_glob_local, w_locals, w_locals_per, hyperpara
 
 
 async def start_train():
-    await asyncio.sleep(start_sleep)
+    await asyncio.sleep(args.start_sleep)
     start_time = time.time()
     await train(None, None, None, None, None, None, start_time)
 
@@ -411,7 +407,7 @@ class MainHandler(web.RequestHandler, ABC):
             detail = await utils.util.shutdown_count(data.get("uuid"), data.get("from_ip"), fed_listen_port, lock,
                                                      args.num_users)
         elif message == "shutdown":
-            asyncio.ensure_future(utils.util.my_exit(exit_sleep))
+            asyncio.ensure_future(utils.util.my_exit(args.exit_sleep))
 
         response = {"status": status, "detail": detail}
         in_json = json.dumps(response, sort_keys=True, indent=4, ensure_ascii=False).encode('utf8')
@@ -422,9 +418,6 @@ def main():
     global args
     global peer_address_list
     global trigger_url
-    global test_ip_addr
-    global start_sleep
-    global exit_sleep
 
     # parse args
     args = args_parser()
@@ -441,11 +434,6 @@ def main():
 
     # parse participant number
     args.num_users = len(peer_address_list)
-
-    # parse test ip addr
-    test_ip_addr = args.test_ip_addr
-    start_sleep = args.start_sleep
-    exit_sleep = args.exit_sleep
 
     # init dataset and global model
     init()

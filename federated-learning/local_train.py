@@ -27,7 +27,6 @@ fed_listen_port = 8888
 args = None
 net_glob = None
 trigger_url = ""
-test_ip_addr = ""
 peer_address_list = []
 dataset_train = None
 dataset_test = None
@@ -38,8 +37,6 @@ g_user_id = 0
 lock = threading.Lock()
 g_init_time = {}
 shutdown_count_num = 0
-start_sleep = 0
-exit_sleep = 0
 
 
 # returns variable from sourcing a file
@@ -60,7 +57,7 @@ def init():
     global skew_users
 
     dataset_train, dataset_test, dict_users, test_users, skew_users = \
-        utils.util.dataset_loader(args.dataset, args.dataset_train_size, args.iid, args.num_users)
+        dataset_loader(args.dataset, args.dataset_train_size, args.iid, args.num_users)
     if dataset_train is None:
         logger.error('Error: unrecognized dataset')
         sys.exit()
@@ -150,7 +147,7 @@ async def train(user_id):
         net_glob.load_state_dict(w)
 
     logger.info("########## ALL DONE! ##########")
-    from_ip = utils.util.get_ip(test_ip_addr)
+    from_ip = utils.util.get_ip(args.test_ip_addr)
     body_data = {
         'message': 'shutdown_python',
         'uuid': user_id,
@@ -160,7 +157,7 @@ async def train(user_id):
 
 
 async def start_train():
-    await asyncio.sleep(start_sleep)
+    await asyncio.sleep(args.start_sleep)
     await train(None)
 
 
@@ -212,7 +209,7 @@ class MainHandler(web.RequestHandler):
             detail = await utils.util.shutdown_count(data.get("uuid"), data.get("from_ip"), fed_listen_port, lock,
                                                      args.num_users)
         elif message == "shutdown":
-            asyncio.ensure_future(utils.util.my_exit(exit_sleep))
+            asyncio.ensure_future(utils.util.my_exit(args.exit_sleep))
 
         response = {"status": status, "detail": detail}
         in_json = json.dumps(response, sort_keys=True, indent=4, ensure_ascii=False).encode('utf8')
@@ -223,9 +220,6 @@ def main():
     global args
     global peer_address_list
     global trigger_url
-    global test_ip_addr
-    global start_sleep
-    global exit_sleep
 
     # parse args
     args = args_parser()
@@ -242,11 +236,6 @@ def main():
 
     # parse participant number
     args.num_users = len(peer_address_list)
-
-    # parse test ip addr
-    test_ip_addr = args.test_ip_addr
-    start_sleep = args.start_sleep
-    exit_sleep = args.exit_sleep
 
     # init dataset and global model
     init()

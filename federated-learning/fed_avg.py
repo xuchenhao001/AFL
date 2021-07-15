@@ -11,12 +11,13 @@ from abc import ABC
 import torch
 from tornado import ioloop, web, httpserver
 
-import utils.util
+import utils
 from utils.options import args_parser
-from models.Update import LocalUpdate
+from utils.util import dataset_loader, model_loader, ColoredLogger
+from models.Update import LocalUpdate, LocalUpdateLSTM
 from models.Fed import FedAvg
 
-logging.setLoggerClass(utils.util.ColoredLogger)
+logging.setLoggerClass(ColoredLogger)
 logger = logging.getLogger("fed_avg")
 
 # TO BE CHANGED
@@ -31,7 +32,6 @@ fed_listen_port = 8888
 
 # NOT TO TOUCH VARIABLES BELOW
 trigger_url = ""
-test_ip_addr = ""
 args = None
 net_glob = None
 dataset_train = None
@@ -50,7 +50,6 @@ g_train_time = {}
 g_train_global_model = None
 g_train_global_model_epoch = None
 shutdown_count_num = 0
-exit_sleep = 0
 
 
 def test(data):
@@ -69,14 +68,13 @@ def init():
     global g_train_global_model_epoch
 
     dataset_train, dataset_test, dict_users, test_users, skew_users = \
-        utils.util.dataset_loader(args.dataset, args.dataset_train_size, args.iid, args.num_users)
-    if dict_users is None:
+        dataset_loader(args.dataset, args.dataset_train_size, args.iid, args.num_users)
+    if dataset_train is None:
         logger.error('Error: unrecognized dataset')
         sys.exit()
 
     img_size = dataset_train[0][0].shape
-    net_glob = utils.util.model_loader(args.model, args.dataset, args.device, args.num_channels, args.num_classes,
-                                       img_size)
+    net_glob = model_loader(args.model, args.dataset, args.device, args.num_channels, args.num_classes, img_size)
     if net_glob is None:
         logger.error('Error: unrecognized model')
         sys.exit()
@@ -122,7 +120,7 @@ async def train(uuid, w_glob, epochs):
         g_init_time[str(uuid)] = start_time
         net_glob.eval()
         acc_local, acc_local_skew1, acc_local_skew2, acc_local_skew3, acc_local_skew4 = \
-            utils.util.test_img(test_users, skew_users, idx, net_glob, dataset_test, args)
+            utils.util.test_model(net_glob, dataset_test, args, test_users, skew_users, idx)
         filename = "result-record_" + str(uuid) + ".txt"
         # first time clean the file
         open(filename, 'w').close()
@@ -143,7 +141,10 @@ async def train(uuid, w_glob, epochs):
                                    + "\n")
     logger.info("#################### Epoch #" + str(epochs) + " start now ####################")
 
-    local = LocalUpdate(args=args, dataset=dataset_train, idxs=dict_users[idx])
+    if dict_users is not None:
+        local = LocalUpdate(args=args, dataset=dataset_train, idxs=dict_users[idx])
+    else:
+        local = LocalUpdateLSTM(args=args, dataset=dataset_train)
     train_start_time = time.time()
     w_local, loss = local.train(net=copy.deepcopy(net_glob).to(args.device))
     # fake attackers
@@ -153,7 +154,7 @@ async def train(uuid, w_glob, epochs):
 
     # send local model to the first node
     w_local_compressed = utils.util.compress_tensor(w_local)
-    from_ip = utils.util.get_ip(test_ip_addr)
+    from_ip = utils.util.get_ip(args.test_ip_addr)
     upload_data = {
         'message': 'upload_local_w',
         'uuid': uuid,
@@ -164,6 +165,11 @@ async def train(uuid, w_glob, epochs):
         'train_time': train_time,
     }
     await utils.util.http_client_post(trigger_url, upload_data)
+
+
+async def start_train():
+    await asyncio.sleep(args.start_sleep)
+    await train(None, None, None)
 
 
 async def gathered_global_w(uuid, epochs, w_glob_compressed, start_time, train_time):
@@ -183,7 +189,7 @@ async def gathered_global_w(uuid, epochs, w_glob_compressed, start_time, train_t
     test_start_time = time.time()
     idx = int(uuid) - 1
     acc_local, acc_local_skew1, acc_local_skew2, acc_local_skew3, acc_local_skew4 = \
-        utils.util.test_img(test_users, skew_users, idx, net_glob, dataset_test, args)
+        utils.util.test_model(net_glob, dataset_test, args, test_users, skew_users, idx)
     test_time = time.time() - test_start_time
 
     # before start next round, record the time
@@ -211,7 +217,7 @@ async def gathered_global_w(uuid, epochs, w_glob_compressed, start_time, train_t
         asyncio.ensure_future(train(uuid, w_glob, new_epochs))
     else:
         logger.info("########## ALL DONE! ##########")
-        from_ip = utils.util.get_ip(test_ip_addr)
+        from_ip = utils.util.get_ip(args.test_ip_addr)
         body_data = {
             'message': 'shutdown_python',
             'uuid': uuid,
@@ -295,18 +301,6 @@ async def load_global_model(epochs):
     return detail
 
 
-class MultiTrainThread(threading.Thread):
-    def __init__(self):
-        threading.Thread.__init__(self)
-
-    def run(self):
-        time.sleep(start_wait_time)
-        logger.debug("start new thread")
-        loop = asyncio.new_event_loop()
-        loop.run_until_complete(train(None, None, None))
-        logger.debug("end thread")
-
-
 class TriggerHandler(web.RequestHandler, ABC):
 
     async def post(self):
@@ -330,7 +324,7 @@ class TriggerHandler(web.RequestHandler, ABC):
             detail = await utils.util.shutdown_count(data.get("uuid"), data.get("from_ip"), fed_listen_port, lock,
                                                      args.num_users)
         elif message == "shutdown":
-            asyncio.ensure_future(utils.util.my_exit(exit_sleep))
+            asyncio.ensure_future(utils.util.my_exit(args.exit_sleep))
 
         response = {"status": status, "detail": detail}
         in_json = json.dumps(response, sort_keys=True, indent=4, ensure_ascii=False).encode('utf8')
@@ -341,8 +335,6 @@ def main():
     global args
     global peer_address_list
     global trigger_url
-    global test_ip_addr
-    global exit_sleep
 
     # parse args
     args = args_parser()
@@ -361,24 +353,10 @@ def main():
     # parse participant number
     args.num_users = len(peer_address_list)
 
-    # parse test ip addr
-    test_ip_addr = args.test_ip_addr
-    exit_sleep = args.exit_sleep
-
     # init dataset and global model
     init()
 
-    # multi-thread training here
-    my_ip = utils.util.get_ip(test_ip_addr)
-    threads = []
-    for addr in peer_addrs:
-        if addr == my_ip:
-            thread_train = MultiTrainThread()
-            threads.append(thread_train)
-
-    # Start all threads
-    for thread in threads:
-        thread.start()
+    asyncio.ensure_future(start_train())
 
     app = web.Application([
         (r"/trigger", TriggerHandler),
