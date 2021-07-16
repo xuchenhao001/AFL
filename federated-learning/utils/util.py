@@ -10,17 +10,14 @@ import logging
 import random
 import socket
 import subprocess
+import threading
 import time
-
 import numpy as np
 import os
-
-import pandas as pd
 import torch
 
-from torch.utils.data import TensorDataset, DataLoader
 from torchvision import datasets, transforms
-from tornado import httpclient, gen
+from tornado import httpclient, gen, ioloop
 
 from datasets.LOOP import LOOPDataset
 from datasets.REALWORLD import REALWORLDDataset
@@ -29,6 +26,7 @@ from models.Nets import CNNCifar, CNNMnist, CNNFashion, UCI_CNN, MLP, LSTM
 from models.test import test_img_total, test_lstm
 from utils.sampling import iid_onepass, noniid_onepass
 
+lock = threading.Lock()
 # format colorful log output
 BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE = range(8)
 # The background is set with 40 plus the number of the color, and the foreground with 30
@@ -219,22 +217,49 @@ def env_from_sourcing(file_to_source_path, variable_name):
     return pipe.stdout.read().decode("utf-8").rstrip()
 
 
-async def http_client_post(url, body_data):
+async def http_client_post(url, body_data, accumulate_time=True):
     json_body = json.dumps(body_data, sort_keys=True, indent=4, ensure_ascii=False,
                            cls=NumpyEncoder).encode('utf8')
-    logger.debug("Start http client post [" + body_data['message'] + "] to: " + url)
+    logger.debug("[HTTP Start] [" + body_data['message'] + "] Start http client post to: " + url)
     method = "POST"
     headers = {'Content-Type': 'application/json; charset=UTF-8'}
     http_client = httpclient.AsyncHTTPClient()
+    request_start_time = time.time()
     try:
         request = httpclient.HTTPRequest(url=url, method=method, headers=headers, body=json_body, connect_timeout=300,
                                          request_timeout=300)
         response = await http_client.fetch(request)
         logger.debug("[HTTP Success] [" + body_data['message'] + "] from " + url)
+        request_time = time.time() - request_start_time
+        if accumulate_time:
+            print("############# {} ############# {} ############# {} #############".format(url, body_data['message'], request_time))
+            add_communication_time(request_time)
         return response.body
     except Exception as e:
+        request_time = time.time() - request_start_time
+        if accumulate_time:
+            add_communication_time(request_time)
         logger.error("[HTTP Error] [" + body_data['message'] + "] from " + url + " ERROR DETAIL: %s" % e)
         return None
+
+
+accumulate_communication_time = 0
+
+
+def add_communication_time(request_time):
+    global accumulate_communication_time
+    lock.acquire()
+    accumulate_communication_time += request_time
+    lock.release()
+
+
+def reset_communication_time():
+    global accumulate_communication_time
+    lock.acquire()
+    communication_time = accumulate_communication_time
+    accumulate_communication_time = 0
+    lock.release()
+    return communication_time
 
 
 class NumpyEncoder(json.JSONEncoder):
@@ -275,20 +300,28 @@ def __decompress_data(data):
 
 
 # compress the tensor data
-def compress_tensor(data):
-    return __compress_data(__convert_tensor_value_to_numpy(data))
+async def compress_tensor(data):
+    numpy_data = await ioloop.IOLoop.current().run_in_executor(None, __convert_tensor_value_to_numpy, data)
+    compressed_data = await ioloop.IOLoop.current().run_in_executor(None, __compress_data, numpy_data)
+    return compressed_data
 
 
 # decompress the data into tensor
-def decompress_tensor(data):
-    return __conver_numpy_value_to_tensor(__decompress_data(data))
+async def decompress_tensor(data):
+    decompressed_data = await ioloop.IOLoop.current().run_in_executor(None, __decompress_data, data)
+    tensor_data = await ioloop.IOLoop.current().run_in_executor(None, __conver_numpy_value_to_tensor, decompressed_data)
+    return tensor_data
 
 
 # generate md5 hash for global model. Require a tensor type gradients.
-def generate_md5_hash(model_weights):
-    np_model_weights = __convert_tensor_value_to_numpy(model_weights)
-    data_md5 = hashlib.md5(json.dumps(np_model_weights, sort_keys=True, cls=NumpyEncoder).encode('utf-8')).hexdigest()
-    return data_md5
+async def generate_md5_hash(model_weights):
+    # np_model_weights = __convert_tensor_value_to_numpy(model_weights)
+    np_model_weights = await ioloop.IOLoop.current().run_in_executor(
+        None, __convert_tensor_value_to_numpy, model_weights)
+    data_md5 = await ioloop.IOLoop.current().run_in_executor(
+        None, hashlib.md5, json.dumps(np_model_weights, sort_keys=True, cls=NumpyEncoder).encode('utf-8'))
+    # data_md5 = hashlib.md5(json.dumps(np_model_weights, sort_keys=True, cls=NumpyEncoder).encode('utf-8')).hexdigest()
+    return data_md5.hexdigest()
 
 
 def disturb_w(w):
