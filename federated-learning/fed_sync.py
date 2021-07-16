@@ -12,7 +12,7 @@ from tornado import ioloop, web, httpserver
 import utils.util
 from utils.options import args_parser
 from utils.util import dataset_loader, model_loader, ColoredLogger
-from models.Update import LocalUpdate, LocalUpdateLSTM
+from models.Update import local_update
 from models.Fed import FedAvg
 
 logging.setLoggerClass(ColoredLogger)
@@ -146,31 +146,11 @@ async def train(uuid, epochs, start_time):
         net_glob.eval()
         acc_local, acc_local_skew1, acc_local_skew2, acc_local_skew3, acc_local_skew4 = \
             utils.util.test_model(net_glob, dataset_test, args, test_users, skew_users, idx)
-        filename = "result-record_" + uuid + ".txt"
-        # first time clean the file
-        open(filename, 'w').close()
-
-        with open(filename, "a") as time_record_file:
-            current_time = time.strftime("%H:%M:%S", time.localtime())
-            time_record_file.write(current_time + "[00]"
-                                   + " <Total Time> 0.0"
-                                   + " <Round Time> 0.0"
-                                   + " <Train Time> 0.0"
-                                   + " <Test Time> 0.0"
-                                   + " <Communication Time> 0.0"
-                                   + " <acc_local> " + str(acc_local)[:8]
-                                   + " <acc_local_skew1> " + str(acc_local_skew1)[:8]
-                                   + " <acc_local_skew2> " + str(acc_local_skew2)[:8]
-                                   + " <acc_local_skew3> " + str(acc_local_skew3)[:8]
-                                   + " <acc_local_skew4> " + str(acc_local_skew4)[:8]
-                                   + "\n")
-
-    if dict_users is not None:
-        local = LocalUpdate(args=args, dataset=dataset_train, idxs=dict_users[idx])
-    else:
-        local = LocalUpdateLSTM(args=args, dataset=dataset_train)
+        utils.util.record_log(uuid, 0, [0.0, 0.0, 0.0, 0.0, 0.0],
+                              [acc_local, acc_local_skew1, acc_local_skew2, acc_local_skew3, acc_local_skew4],
+                              args.model, clean=True)
     train_start_time = time.time()
-    w_local, loss = local.train(net=copy.deepcopy(net_glob).to(args.device))
+    w_local, _ = local_update(copy.deepcopy(net_glob).to(args.device), dataset_train, dict_users[idx], args)
     # fake attackers
     if str(uuid) in attackers_id:
         w_local = utils.util.disturb_w(w_local)
@@ -292,25 +272,11 @@ async def round_finish(uuid, epochs):
     test_time = time.time() - test_start_time
 
     # before start next round, record the time
-    filename = "result-record_" + uuid + ".txt"
-
-    with open(filename, "a") as time_record_file:
-        current_time = time.strftime("%H:%M:%S", time.localtime())
-        total_time = time.time() - g_init_time[str(uuid)]
-        round_time = time.time() - start_time
-        communication_time = round_time - train_time - test_time
-        time_record_file.write(current_time + "[" + f"{epochs:0>2}" + "]"
-                               + " <Total Time> " + str(total_time)[:8]
-                               + " <Round Time> " + str(round_time)[:8]
-                               + " <Train Time> " + str(train_time)[:8]
-                               + " <Test Time> " + str(test_time)[:8]
-                               + " <Communication Time> " + str(communication_time)[:8]
-                               + " <acc_local> " + str(acc_local)[:8]
-                               + " <acc_local_skew1> " + str(acc_local_skew1)[:8]
-                               + " <acc_local_skew2> " + str(acc_local_skew2)[:8]
-                               + " <acc_local_skew3> " + str(acc_local_skew3)[:8]
-                               + " <acc_local_skew4> " + str(acc_local_skew4)[:8]
-                               + "\n")
+    total_time = time.time() - g_init_time[str(uuid)]
+    round_time = time.time() - start_time
+    communication_time = round_time - train_time - test_time
+    utils.util.record_log(uuid, epochs, [total_time, round_time, train_time, test_time, communication_time],
+                          [acc_local, acc_local_skew1, acc_local_skew2, acc_local_skew3, acc_local_skew4], args.model)
     if new_epochs > 0:
         body_data = {
             'message': 'next_round_count',

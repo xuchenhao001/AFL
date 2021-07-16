@@ -15,7 +15,7 @@ from tornado import ioloop, web, httpserver
 
 import utils
 from utils.options import args_parser
-from models.Update import LocalUpdate, LocalUpdateLSTM
+from models.Update import local_update
 from models.Fed import FedAvg
 from utils.util import dataset_loader, model_loader, ColoredLogger
 
@@ -118,24 +118,8 @@ async def train(user_id, epochs, w_glob_local, w_locals, w_locals_per, hyperpara
         net_glob.eval()
         acc_local, acc_local_skew1, acc_local_skew2, acc_local_skew3, acc_local_skew4 = \
             utils.util.test_model(net_glob, dataset_test, args, test_users, skew_users, idx)
-        filename = "result-record_" + str(user_id) + ".txt"
-        # first time clean the file
-        open(filename, 'w').close()
-
-        with open(filename, "a") as time_record_file:
-            current_time = time.strftime("%H:%M:%S", time.localtime())
-            time_record_file.write(current_time + "[00]"
-                                   + " <Total Time> 0.0"
-                                   + " <Round Time> 0.0"
-                                   + " <Train Time> 0.0"
-                                   + " <Test Time> 0.0"
-                                   + " <Communication Time> 0.0"
-                                   + " <acc_local> " + str(acc_local)[:8]
-                                   + " <acc_local_skew1> 0.0"
-                                   + " <acc_local_skew2> 0.0"
-                                   + " <acc_local_skew3> 0.0"
-                                   + " <acc_local_skew4> 0.0"
-                                   + "\n")
+        utils.util.record_log(user_id, 0, [0.0, 0.0, 0.0, 0.0, 0.0], [acc_local, 0.0, 0.0, 0.0, 0.0], args.model,
+                              clean=True)
 
         epochs = args.epochs
         # initialize weights of model
@@ -166,21 +150,13 @@ async def train(user_id, epochs, w_glob_local, w_locals, w_locals_per, hyperpara
 
         # train local global weight
         net_glob.load_state_dict(w_glob_local)
-        if dict_users is not None:
-            local = LocalUpdate(args=args, dataset=dataset_train, idxs=dict_users[user_id - 1])
-        else:
-            local = LocalUpdateLSTM(args=args, dataset=dataset_train)
-        w, loss = local.train(net=copy.deepcopy(net_glob).to(args.device))
+        w, _ = local_update(copy.deepcopy(net_glob).to(args.device), dataset_train, dict_users[user_id - 1], args)
         for j in w_glob.keys():
             w_glob_local[j] = copy.deepcopy(w[j])
 
         # train local model weight
         net_glob.load_state_dict(w_locals_per)
-        if dict_users is not None:
-            local = LocalUpdate(args=args, dataset=dataset_train, idxs=dict_users[user_id - 1])
-        else:
-            local = LocalUpdateLSTM(args=args, dataset=dataset_train)
-        w, loss = local.train(net=copy.deepcopy(net_glob).to(args.device))
+        w, _ = local_update(copy.deepcopy(net_glob).to(args.device), dataset_train, dict_users[user_id - 1], args)
         # loss_locals.append(copy.deepcopy(loss))
 
         for j in w_glob.keys():
@@ -216,27 +192,14 @@ async def train(user_id, epochs, w_glob_local, w_locals, w_locals_per, hyperpara
         test_time = time.time() - test_start_time
 
         # before start next round, record the time
-        filename = "result-record_" + str(user_id) + ".txt"
-
-        with open(filename, "a") as time_record_file:
-            current_time = time.strftime("%H:%M:%S", time.localtime())
-            total_time = time.time() - g_init_time[str(user_id)]
-            round_time = time.time() - start_time
-            communication_time = round_time - train_time - test_time
-            if communication_time < 0.001:
-                communication_time = 0.0
-            time_record_file.write(current_time + "[" + f"{iter + 1:0>2}" + "]"
-                                   + " <Total Time> " + str(total_time)[:8]
-                                   + " <Round Time> " + str(round_time)[:8]
-                                   + " <Train Time> " + str(train_time)[:8]
-                                   + " <Test Time> " + str(test_time)[:8]
-                                   + " <Communication Time> " + str(communication_time)[:8]
-                                   + " <acc_local> " + str(acc_local)[:8]
-                                   + " <acc_local_skew1> " + str(acc_local_skew1)[:8]
-                                   + " <acc_local_skew2> " + str(acc_local_skew2)[:8]
-                                   + " <acc_local_skew3> " + str(acc_local_skew3)[:8]
-                                   + " <acc_local_skew4> " + str(acc_local_skew4)[:8]
-                                   + "\n")
+        total_time = time.time() - g_init_time[str(user_id)]
+        round_time = time.time() - start_time
+        communication_time = round_time - train_time - test_time
+        if communication_time < 0.001:
+            communication_time = 0.0
+        utils.util.record_log(user_id, iter+1, [total_time, round_time, train_time, test_time, communication_time],
+                              [acc_local, acc_local_skew1, acc_local_skew2, acc_local_skew3, acc_local_skew4],
+                              args.model)
         start_time = time.time()
         if (iter + 1) % 10 == 0:  # update global model
             from_ip = utils.util.get_ip(args.test_ip_addr)

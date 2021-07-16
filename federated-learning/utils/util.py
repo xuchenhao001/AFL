@@ -10,6 +10,7 @@ import logging
 import random
 import socket
 import subprocess
+import time
 
 import numpy as np
 import os
@@ -159,12 +160,8 @@ def dataset_loader(dataset_name, dataset_train_size, isIID, num_users):
         loop_data_path = os.path.join(real_path, "../../data/loop/")
         dataset_train = LOOPDataset(data_path=loop_data_path, phase='train')
         dataset_test = LOOPDataset(data_path=loop_data_path, phase='eval')
-        if isIID:
-            dict_users, test_users = iid_onepass(dataset_train, dataset_train_size, dataset_test, dataset_test_size,
-                                                 num_users, dataset_name=dataset_name)
-        else:
-            dict_users, test_users, skew_users = noniid_onepass(dataset_train, dataset_train_size, dataset_test,
-                                                                dataset_test_size, num_users, dataset_name=dataset_name)
+        dict_users, test_users = iid_onepass(dataset_train, dataset_train_size, dataset_test, dataset_test_size,
+                                             num_users, dataset_name=dataset_name)
     return dataset_train, dataset_test, dict_users, test_users, skew_users
 
 
@@ -193,8 +190,9 @@ def model_loader(model_name, dataset_name, device, num_channels, num_classes, im
 
 
 def test_model(net_glob, dataset_test, args, test_users, skew_users, idx):
-    if test_users is None and skew_users is None:  # for LSTM
-        loss_mse, loss_mae = test_lstm(net_glob, dataset_test, args)
+    if args.model == "lstm":  # for LSTM
+        test_indices = test_users[idx]
+        loss_mse, loss_mae = test_lstm(net_glob, dataset_test, args, test_indices)
         return loss_mse, loss_mae, 0.0, 0.0, 0.0
     if args.iid:
         idx_total = [test_users[idx]]
@@ -338,6 +336,46 @@ async def shutdown_count(uuid, from_ip, fed_listen_port, lock, num_users):
         for uuid in ipMap.keys():
             client_url = "http://" + ipMap[uuid] + ":" + str(fed_listen_port) + "/trigger"
             await http_client_post(client_url, body_data)
+
+
+# time_list: [total_time, round_time, train_time, test_time, commu_time]
+# acc_list: [acc_local, acc_local_skew1, acc_local_skew2, acc_local_skew3, acc_local_skew4]  (for cnn or mlp)
+#       or: [loss_mse, loss_mae]  (for lstm)
+# model: cnn, mlp, or lstm
+def record_log(user_id, epoch, time_list, acc_list, model, clean=False):
+    filename = "result-record_" + str(user_id) + ".txt"
+
+    # first time clean the file
+    if clean:
+        open(filename, 'w').close()
+
+    if model == "lstm":
+        with open(filename, "a") as time_record_file:
+            current_time = time.strftime("%H:%M:%S", time.localtime())
+            time_record_file.write(current_time + "[" + "{:03d}".format(epoch) + "]"
+                                   + " <Total Time> " + str(time_list[0])[:8]
+                                   + " <Round Time> " + str(time_list[1])[:8]
+                                   + " <Train Time> " + str(time_list[2])[:8]
+                                   + " <Test Time> " + str(time_list[3])[:8]
+                                   + " <Communication Time> " + str(time_list[4])[:8]
+                                   + " <mse_loss> " + str(acc_list[0])[:8]
+                                   + " <mae_loss> " + str(acc_list[1])[:8]
+                                   + "\n")
+    else:
+        with open(filename, "a") as time_record_file:
+            current_time = time.strftime("%H:%M:%S", time.localtime())
+            time_record_file.write(current_time + "[" + f"{epoch + 1:0>2}" + "]"
+                                   + " <Total Time> " + str(time_list[0])[:8]
+                                   + " <Round Time> " + str(time_list[1])[:8]
+                                   + " <Train Time> " + str(time_list[2])[:8]
+                                   + " <Test Time> " + str(time_list[3])[:8]
+                                   + " <Communication Time> " + str(time_list[4])[:8]
+                                   + " <acc_local> " + str(acc_list[0])[:8]
+                                   + " <acc_local_skew1> " + str(acc_list[1])[:8]
+                                   + " <acc_local_skew2> " + str(acc_list[2])[:8]
+                                   + " <acc_local_skew3> " + str(acc_list[3])[:8]
+                                   + " <acc_local_skew4> " + str(acc_list[4])[:8]
+                                   + "\n")
 
 
 async def my_exit(exit_sleep):

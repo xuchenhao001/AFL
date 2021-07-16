@@ -50,8 +50,8 @@ def test_img_total(net_g, dataset_test, args, idx_list):
     return accuracy_list, test_loss_list
 
 
-def test_lstm(net_g, dataset_test, args):
-    data_loader = DataLoader(dataset_test, batch_size=40, shuffle=True, drop_last=True)
+def test_lstm(net_g, dataset_test, args, test_indices):
+    data_loader = DataLoader(DatasetSplit(dataset_test, test_indices), batch_size=40, shuffle=True, drop_last=True)
     losses_mse = []
     losses_mae = []
     for idx, (data, target) in enumerate(data_loader):
@@ -73,5 +73,5 @@ def test_lstm(net_g, dataset_test, args):
     # mean_l1 = np.mean(losses_l1) * max_speed
     # std_l1 = np.std(losses_l1) * max_speed
 
-    print('Tested: MSE_loss: {}, MAE_mean: {}'.format(loss_mse_mean, loss_mae_mean))
+    # print('Tested: MSE_loss: {}, MAE_mean: {}'.format(loss_mse_mean, loss_mae_mean))
     return loss_mse_mean, loss_mae_mean
