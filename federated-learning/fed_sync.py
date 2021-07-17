@@ -49,6 +49,7 @@ g_start_time = {}
 g_train_time = {}
 g_train_local_models = []
 g_train_global_model = None
+g_train_global_model_compressed = None
 g_train_global_model_epoch = None
 shutdown_count_num = 0
 
@@ -72,6 +73,7 @@ async def init():
     global peer_address_list
     global global_model_hash
     global g_train_global_model
+    global g_train_global_model_compressed
     global g_train_global_model_epoch
     # parse network.config and read the peer addresses
     real_path = os.path.dirname(os.path.realpath(__file__))
@@ -106,7 +108,8 @@ async def init():
     # generate md5 hash from model, which is treated as global model of previous round.
     w = net_glob.state_dict()
     global_model_hash = await utils.util.generate_md5_hash(w)
-    g_train_global_model = await utils.util.compress_tensor(w)
+    g_train_global_model = w
+    g_train_global_model_compressed = await utils.util.compress_tensor(w)
     g_train_global_model_epoch = -1  # -1 means the initial global model
 
 
@@ -196,6 +199,7 @@ async def train_count(epochs, uuid, start_time, train_time, w_compressed):
     global g_train_time
     global g_train_local_models
     global g_train_global_model
+    global g_train_global_model_compressed
     global g_train_global_model_epoch
     global global_model_hash
     lock.acquire()
@@ -218,8 +222,8 @@ async def train_count(epochs, uuid, start_time, train_time, w_compressed):
         # release g_train_local_models after aggregation
         g_train_local_models = []
         # save global model for further download (compressed)
-        w_glob_compressed = await utils.util.compress_tensor(w_glob)
-        g_train_global_model = w_glob_compressed
+        g_train_global_model = w_glob
+        g_train_global_model_compressed = await utils.util.compress_tensor(w_glob)
         g_train_global_model_epoch = epochs
         # generate hash of global model
         global_model_hash = await utils.util.generate_md5_hash(w_glob)
@@ -361,7 +365,7 @@ async def fetch_time(uuid, epochs):
 async def download_global_model(epochs):
     if epochs == g_train_global_model_epoch:
         detail = {
-            "global_model": g_train_global_model,
+            "global_model": g_train_global_model_compressed,
         }
     else:
         detail = {

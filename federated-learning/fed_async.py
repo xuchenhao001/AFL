@@ -46,6 +46,7 @@ g_init_time = {}
 g_start_time = {}
 g_train_time = {}
 g_train_global_model = None
+g_train_global_model_compressed = None
 g_train_global_model_version = 0
 shutdown_count_num = 0
 fade_count = None  # for each epoch, record the number of submitted local model
@@ -71,6 +72,7 @@ async def init():
     global peer_address_list
     global global_model_hash
     global g_train_global_model
+    global g_train_global_model_compressed
     # parse network.config and read the peer addresses
     real_path = os.path.dirname(os.path.realpath(__file__))
     peer_address_list = utils.util.env_from_sourcing(os.path.join(real_path, "../fabric-network/network.config"),
@@ -105,6 +107,7 @@ async def init():
     w = net_glob.state_dict()
     global_model_hash = await utils.util.generate_md5_hash(w)
     g_train_global_model = w
+    g_train_global_model_compressed = await utils.util.compress_tensor(w)
 
 
 # STEP #1
@@ -193,6 +196,7 @@ async def aggregate(epochs, uuid, start_time, train_time, w_compressed):
     global g_start_time
     global g_train_time
     global g_train_global_model
+    global g_train_global_model_compressed
     global g_train_global_model_version
     global global_model_hash
     lock.acquire()
@@ -205,18 +209,27 @@ async def aggregate(epochs, uuid, start_time, train_time, w_compressed):
     w_glob = await utils.util.decompress_tensor(w_compressed)
     # aggregate global model
     if g_train_global_model is not None:
-        fade_c = await calculate_fade_c(int(epochs), uuid, w_compressed)
-        logger.debug("calculated fade_c: %f" % fade_c)
+        # fade_c = await calculate_fade_c(int(epochs), uuid, w_compressed)
         with ProcessPoolExecutor() as pool:
+            test_start_time = time.time()
+            fade_c = await calculate_fade_c(int(epochs), uuid, w_glob)
+            print("Time A: {}".format(time.time()-test_start_time))
+            logger.debug("calculated fade_c: %f" % fade_c)
+            test_start_time = time.time()
             w_glob = await ioloop.IOLoop.current().run_in_executor(
                 pool, FadeFedAvg, g_train_global_model, w_glob, fade_c)
-    # save global model for further download (compressed)
+            print("Time B: {}".format(time.time()-test_start_time))
+    # save global model for further download
+    gm_compressed = await utils.util.compress_tensor(w_glob)
     lock.acquire()
     g_train_global_model = w_glob
+    g_train_global_model_compressed = gm_compressed
     g_train_global_model_version += 1
     lock.release()
     # generate hash of global model
+    test_start_time = time.time()
     global_model_hash = await utils.util.generate_md5_hash(w_glob)
+    print("Time C: {}".format(time.time() - test_start_time))
     logger.debug("As a committee leader, calculate new global model hash: " + global_model_hash)
     # send the download link and hash of global model to the ledger
     body_data = {
@@ -233,17 +246,22 @@ async def aggregate(epochs, uuid, start_time, train_time, w_compressed):
     await utils.util.http_client_post(blockchain_server_url, body_data)
 
 
-async def calculate_fade_c(epoch, uuid, w_compressed):
+async def calculate_fade_c(epoch, uuid, w_glob):
     global fade_count
     fade_target = args.fade
     if fade_target == -1:  # -1 means fade dynamic setting
         # dynamic fade setting, test new acc_local first
-        w_glob = await utils.util.decompress_tensor(w_compressed)
         net_glob.load_state_dict(w_glob)
         net_glob.eval()
         idx = int(uuid) - 1
-        acc_local, acc_local_skew1, acc_local_skew2, acc_local_skew3, acc_local_skew4 = \
-            utils.util.test_model(net_glob, dataset_test, args, test_users, skew_users, idx)
+
+        with ProcessPoolExecutor() as pool:
+            acc_local, acc_local_skew1, acc_local_skew2, acc_local_skew3, acc_local_skew4 = await \
+                ioloop.IOLoop.current().run_in_executor(
+                    pool, utils.util.test_model, net_glob, dataset_test, args, test_users, skew_users, idx)
+
+        # acc_local, acc_local_skew1, acc_local_skew2, acc_local_skew3, acc_local_skew4 = \
+        #     utils.util.test_model(net_glob, dataset_test, args, test_users, skew_users, idx)
         if acc_local > current_acc_local:
             fade_c = 1.5
         elif acc_local < current_acc_local:
@@ -359,9 +377,8 @@ async def fetch_time(uuid, epochs):
 
 
 async def download_global_model():
-    compressed_global_model = await utils.util.compress_tensor(g_train_global_model)
     detail = {
-        "global_model": compressed_global_model,
+        "global_model": g_train_global_model_compressed,
         "version": g_train_global_model_version,
     }
     return detail
