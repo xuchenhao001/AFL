@@ -1,4 +1,3 @@
-import asyncio
 import json
 import logging
 import os
@@ -7,11 +6,7 @@ import time
 import copy
 import threading
 import torch
-from tornado import ioloop, web, httpserver
-
-from concurrent.futures import ProcessPoolExecutor
-import multiprocessing
-multiprocessing.set_start_method('spawn', True)
+from flask import Flask, request
 
 import utils.util
 from utils.options import args_parser
@@ -20,6 +15,7 @@ from models.Update import local_update
 from models.Fed import FadeFedAvg
 
 logging.setLoggerClass(ColoredLogger)
+logging.getLogger('werkzeug').setLevel(logging.ERROR)
 logger = logging.getLogger("fed_async")
 
 # TO BE CHANGED
@@ -53,13 +49,8 @@ fade_count = None  # for each epoch, record the number of submitted local model
 current_acc_local = 0
 
 
-def test(data):
-    detail = {"data": data}
-    return "yes", detail
-
-
 # STEP #1
-async def init():
+def init():
     global args
     global net_glob
     global dataset_train
@@ -105,13 +96,13 @@ async def init():
     net_glob.train()
     # generate md5 hash from model, which is treated as global model of previous round.
     w = net_glob.state_dict()
-    global_model_hash = await utils.util.generate_md5_hash(w)
+    global_model_hash = utils.util.generate_md5_hash(w)
     g_train_global_model = w
-    g_train_global_model_compressed = await utils.util.compress_tensor(w)
+    g_train_global_model_compressed = utils.util.compress_tensor(w)
 
 
 # STEP #1
-async def start():
+def start():
     # upload md5 hash to ledger
     body_data = {
         'message': 'Start',
@@ -122,11 +113,11 @@ async def start():
         'epochs': args.epochs,
         'is_sync': False
     }
-    await utils.util.http_client_post(blockchain_server_url, body_data)
+    utils.util.http_client_post(blockchain_server_url, body_data)
 
 
 # STEP #2
-async def train(uuid, epochs, start_time):
+def train(uuid, epochs, start_time):
     global g_init_time
     logger.debug('Train local model for user: %s, epoch: %s.' % (uuid, epochs))
 
@@ -138,12 +129,12 @@ async def train(uuid, epochs, start_time):
             'message': 'global_model',
         }
         logger.debug('fetch initial global model from: %s' % trigger_url)
-        result = await utils.util.http_client_post(trigger_url, body_data)
-        responseObj = json.loads(result)
-        detail = responseObj.get("detail")
+        # time.sleep(20000)  # test to pause
+        result = utils.util.http_client_post(trigger_url, body_data)
+        detail = result.get("detail")
         global_model_compressed = detail.get("global_model")
-        w_glob = await utils.util.decompress_tensor(global_model_compressed)
-        w_glob_hash = await utils.util.generate_md5_hash(w_glob)
+        w_glob = utils.util.decompress_tensor(global_model_compressed)
+        w_glob_hash = utils.util.generate_md5_hash(w_glob)
         logger.debug('Downloaded initial global model hash: ' + w_glob_hash)
         net_glob.load_state_dict(w_glob)
         g_init_time[str(uuid)] = start_time
@@ -154,16 +145,14 @@ async def train(uuid, epochs, start_time):
                               [acc_local, acc_local_skew1, acc_local_skew2, acc_local_skew3, acc_local_skew4],
                               args.model, clean=True)
     train_start_time = time.time()
-    with ProcessPoolExecutor() as pool:
-        w_local, _ = await ioloop.IOLoop.current().run_in_executor(
-            pool, local_update, copy.deepcopy(net_glob).to(args.device), dataset_train, dict_users[idx], args)
+    w_local, _ = local_update(copy.deepcopy(net_glob).to(args.device), dataset_train, dict_users[idx], args)
     # fake attackers
     if str(uuid) in attackers_id:
         w_local = utils.util.disturb_w(w_local)
     train_time = time.time() - train_start_time
 
     # send local model to the first node for aggregation
-    w_local_compressed = await utils.util.compress_tensor(w_local)
+    w_local_compressed = utils.util.compress_tensor(w_local)
     body_data = {
         'message': 'train_ready',
         'uuid': str(uuid),
@@ -172,10 +161,10 @@ async def train(uuid, epochs, start_time):
         'start_time': start_time,
         'train_time': train_time
     }
-    await utils.util.http_client_post(trigger_url, body_data)
+    utils.util.http_client_post(trigger_url, body_data, False)
 
     # send hash of local model to the ledger
-    model_md5 = await utils.util.generate_md5_hash(w_local)
+    model_md5 = utils.util.generate_md5_hash(w_local)
     body_data = {
         'message': 'UploadLocalModel',
         'data': {
@@ -185,14 +174,14 @@ async def train(uuid, epochs, start_time):
         'epochs': epochs,
         'is_sync': False
     }
-    await utils.util.http_client_post(blockchain_server_url, body_data)
+    utils.util.http_client_post(blockchain_server_url, body_data)
 
     # finished aggregate global model, continue next round
-    await round_finish(uuid, epochs)
+    round_finish(uuid, epochs)
 
 
 # STEP #3
-async def aggregate(epochs, uuid, start_time, train_time, w_compressed):
+def aggregate(epochs, uuid, start_time, train_time, w_compressed):
     global g_start_time
     global g_train_time
     global g_train_global_model
@@ -206,30 +195,21 @@ async def aggregate(epochs, uuid, start_time, train_time, w_compressed):
     g_train_time[key] = train_time
     lock.release()
     logger.debug("Aggregate global model after received a new local model.")
-    w_glob = await utils.util.decompress_tensor(w_compressed)
+    w_glob = utils.util.decompress_tensor(w_compressed)
     # aggregate global model
     if g_train_global_model is not None:
-        # fade_c = await calculate_fade_c(int(epochs), uuid, w_compressed)
-        with ProcessPoolExecutor() as pool:
-            test_start_time = time.time()
-            fade_c = await calculate_fade_c(int(epochs), uuid, w_glob)
-            print("Time A: {}".format(time.time()-test_start_time))
-            logger.debug("calculated fade_c: %f" % fade_c)
-            test_start_time = time.time()
-            w_glob = await ioloop.IOLoop.current().run_in_executor(
-                pool, FadeFedAvg, g_train_global_model, w_glob, fade_c)
-            print("Time B: {}".format(time.time()-test_start_time))
+        fade_c = calculate_fade_c(int(epochs), uuid, w_glob)
+        logger.debug("calculated fade_c: %f" % fade_c)
+        w_glob = FadeFedAvg(g_train_global_model, w_glob, fade_c)
     # save global model for further download
-    gm_compressed = await utils.util.compress_tensor(w_glob)
+    gm_compressed = utils.util.compress_tensor(w_glob)
     lock.acquire()
     g_train_global_model = w_glob
     g_train_global_model_compressed = gm_compressed
     g_train_global_model_version += 1
     lock.release()
     # generate hash of global model
-    test_start_time = time.time()
-    global_model_hash = await utils.util.generate_md5_hash(w_glob)
-    print("Time C: {}".format(time.time() - test_start_time))
+    global_model_hash = utils.util.generate_md5_hash(w_glob)
     logger.debug("As a committee leader, calculate new global model hash: " + global_model_hash)
     # send the download link and hash of global model to the ledger
     body_data = {
@@ -243,10 +223,10 @@ async def aggregate(epochs, uuid, start_time, train_time, w_compressed):
     }
     logger.debug('aggregate global model finished, send global_model_hash [%s] to blockchain in epoch [%s].'
                  % (global_model_hash, epochs))
-    await utils.util.http_client_post(blockchain_server_url, body_data)
+    utils.util.http_client_post(blockchain_server_url, body_data)
 
 
-async def calculate_fade_c(epoch, uuid, w_glob):
+def calculate_fade_c(epoch, uuid, w_glob):
     global fade_count
     fade_target = args.fade
     if fade_target == -1:  # -1 means fade dynamic setting
@@ -255,13 +235,9 @@ async def calculate_fade_c(epoch, uuid, w_glob):
         net_glob.eval()
         idx = int(uuid) - 1
 
-        with ProcessPoolExecutor() as pool:
-            acc_local, acc_local_skew1, acc_local_skew2, acc_local_skew3, acc_local_skew4 = await \
-                ioloop.IOLoop.current().run_in_executor(
-                    pool, utils.util.test_model, net_glob, dataset_test, args, test_users, skew_users, idx)
+        acc_local, acc_local_skew1, acc_local_skew2, acc_local_skew3, acc_local_skew4 = \
+            utils.util.test_model(net_glob, dataset_test, args, test_users, skew_users, idx)
 
-        # acc_local, acc_local_skew1, acc_local_skew2, acc_local_skew3, acc_local_skew4 = \
-        #     utils.util.test_model(net_glob, dataset_test, args, test_users, skew_users, idx)
         if acc_local > current_acc_local:
             fade_c = 1.5
         elif acc_local < current_acc_local:
@@ -285,7 +261,7 @@ async def calculate_fade_c(epoch, uuid, w_glob):
 
 
 # STEP #7
-async def round_finish(uuid, epochs):
+def round_finish(uuid, epochs):
     global global_model_hash
     global current_acc_local
     logger.debug('Download latest global model for user: %s, epoch: %s.' % (uuid, epochs))
@@ -294,16 +270,15 @@ async def round_finish(uuid, epochs):
     body_data = {
         'message': 'global_model',
     }
-    result = await utils.util.http_client_post(trigger_url, body_data)
-    response_obj = json.loads(result)
-    detail = response_obj.get("detail")
+    result = utils.util.http_client_post(trigger_url, body_data)
+    detail = result.get("detail")
     global_model_compressed = detail.get("global_model")
     global_model_version = detail.get("version")
     logger.debug('Successfully fetched global model [%s] of epoch [%s] from: %s' % (global_model_version, epochs,
                                                                                     trigger_url))
-    w_glob = await utils.util.decompress_tensor(global_model_compressed)
+    w_glob = utils.util.decompress_tensor(global_model_compressed)
     # load hash of new global model, which is downloaded from the leader
-    global_model_hash = await utils.util.generate_md5_hash(w_glob)
+    global_model_hash = utils.util.generate_md5_hash(w_glob)
     logger.debug("Received new global model with hash: " + global_model_hash)
 
     # epochs count backwards until 0
@@ -314,9 +289,8 @@ async def round_finish(uuid, epochs):
         'uuid': uuid,
         'epochs': epochs,
     }
-    response = await utils.util.http_client_post(trigger_url, fetch_data)
-    response_obj = json.loads(response)
-    detail = response_obj.get("detail")
+    response = utils.util.http_client_post(trigger_url, fetch_data)
+    detail = response.get("detail")
     start_time = detail.get("start_time")
     train_time = detail.get("train_time")
 
@@ -338,16 +312,16 @@ async def round_finish(uuid, epochs):
                           [acc_local, acc_local_skew1, acc_local_skew2, acc_local_skew3, acc_local_skew4], args.model)
     if new_epochs > 0:
         # start next round of train right now
-        await train(uuid, new_epochs, time.time())
+        train(uuid, new_epochs, time.time())
     else:
         logger.info("########## ALL DONE! ##########")
         body_data = {
             'message': 'shutdown_python'
         }
-        await utils.util.http_client_post(trigger_url, body_data)
+        utils.util.http_client_post(trigger_url, body_data)
 
 
-async def shutdown_count():
+def shutdown_count():
     global shutdown_count_num
     lock.acquire()
     shutdown_count_num += 1
@@ -362,10 +336,10 @@ async def shutdown_count():
             'is_sync': False
         }
         logger.debug('Sent shutdown python request to blockchain.')
-        await utils.util.http_client_post(blockchain_server_url, body_data)
+        utils.util.http_client_post(blockchain_server_url, body_data)
 
 
-async def fetch_time(uuid, epochs):
+def fetch_time(uuid, epochs):
     key = str(uuid) + "-" + str(epochs)
     start_time = g_start_time.get(key)
     train_time = g_train_time.get(key)
@@ -376,7 +350,7 @@ async def fetch_time(uuid, epochs):
     return detail
 
 
-async def download_global_model():
+def download_global_model():
     detail = {
         "global_model": g_train_global_model_compressed,
         "version": g_train_global_model_version,
@@ -384,70 +358,67 @@ async def download_global_model():
     return detail
 
 
-class TriggerHandler(web.RequestHandler):
+def my_route(app):
+    @app.route('/messages', methods=['GET', 'POST'])
+    def main_handler():
+        # For GET
+        if request.method == 'GET':
+            start()
+            response = {
+                'status': 'yes'
+            }
+            return response
+        # For POST
+        else:
+            data = request.get_json()
+            status = "yes"
+            detail = {}
+            response = {"status": status, "detail": detail}
+            # Then judge message type and process
+            message = data.get("message")
+            if message == "prepare":
+                train(data.get("uuid"), data.get("epochs"), time.time())
+            elif message == "shutdown":
+                utils.util.my_exit(args.exit_sleep)
+            return response
 
-    async def post(self):
-        data = json.loads(self.request.body)
-        status = "yes"
-        detail = {}
-        self.set_header("Content-Type", "application/json")
+    @app.route('/trigger', methods=['GET', 'POST'])
+    def trigger_handler():
+        # For POST
+        if request.method == 'POST':
+            data = request.get_json()
+            status = "yes"
+            detail = {}
+            message = data.get("message")
+            if message == "train_ready":
+                aggregate(data.get("epochs"), data.get("uuid"), data.get("start_time"), data.get("train_time"),
+                          data.get("w_compressed"))
+            elif message == "global_model":
+                detail = download_global_model()
+            elif message == "fetch_time":
+                detail = fetch_time(data.get("uuid"), data.get("epochs"))
+            elif message == "shutdown_python":
+                shutdown_count()
+            response = {"status": status, "detail": detail}
+            return response
 
-        message = data.get("message")
-        if message == "train_ready":
-            asyncio.create_task(aggregate(data.get("epochs"), data.get("uuid"), data.get("start_time"),
-                                          data.get("train_time"), data.get("w_compressed")))
-        elif message == "global_model":
-            detail = await download_global_model()
-        elif message == "fetch_time":
-            detail = await fetch_time(data.get("uuid"), data.get("epochs"))
-        elif message == "shutdown_python":
-            detail = await shutdown_count()
-
-        response = {"status": status, "detail": detail}
-        in_json = json.dumps(response, sort_keys=True, indent=4, ensure_ascii=False).encode('utf8')
-        self.write(in_json)
-
-
-class MainHandler(web.RequestHandler):
-
-    async def get(self):
-        asyncio.create_task(start())
-        response = {
-            'status': 'yes'
-        }
-        in_json = json.dumps(response, sort_keys=True, indent=4, ensure_ascii=False).encode('utf8')
-        self.set_header("Content-Type", "application/json")
-        self.write(in_json)
-
-    async def post(self):
-        # reply to smart contract first
-        data = json.loads(self.request.body)
-        status = "yes"
-        detail = {}
-        self.set_header("Content-Type", "application/json")
-        response = {"status": status, "detail": detail}
-        in_json = json.dumps(response, sort_keys=True, indent=4, ensure_ascii=False).encode('utf8')
-        self.write(in_json)
-
-        # Then judge message type and process
-        message = data.get("message")
-        if message == "test":
-            test(data.get("data"))
-        elif message == "prepare":
-            asyncio.create_task(train(data.get("uuid"), data.get("epochs"), time.time()))
-        elif message == "shutdown":
-            asyncio.create_task(utils.util.my_exit(args.exit_sleep))
-        return
+    @app.route('/test', methods=['GET', 'POST'])
+    def test():
+        # For GET
+        if request.method == 'GET':
+            test_body = {
+                "test": "success"
+            }
+            return test_body
+        # For POST
+        else:
+            doc = request.get_json()
+            return doc
 
 
 if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(init())
-    app = web.Application([
-        (r"/messages", MainHandler),
-        (r"/trigger", TriggerHandler),
-    ])
-    http_server = httpserver.HTTPServer(app, max_buffer_size=10485760000)  # 10GB
-    http_server.listen(fed_listen_port)
+    init()
+    flask_app = Flask(__name__)
+    my_route(flask_app)
     logger.info("start serving at " + str(fed_listen_port) + "...")
-    ioloop.IOLoop.current().start()
+    flask_app.run(host='0.0.0.0', port=fed_listen_port)

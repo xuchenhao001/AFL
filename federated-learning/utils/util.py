@@ -1,6 +1,4 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-# Python version: 3.6
+import asyncio
 import base64
 import copy
 import gzip
@@ -8,6 +6,7 @@ import hashlib
 import json
 import logging
 import random
+import requests
 import socket
 import subprocess
 import threading
@@ -15,9 +14,7 @@ import time
 import numpy as np
 import os
 import torch
-
 from torchvision import datasets, transforms
-from tornado import httpclient, gen, ioloop
 
 from datasets.LOOP import LOOPDataset
 from datasets.REALWORLD import REALWORLDDataset
@@ -217,30 +214,15 @@ def env_from_sourcing(file_to_source_path, variable_name):
     return pipe.stdout.read().decode("utf-8").rstrip()
 
 
-async def http_client_post(url, body_data, accumulate_time=True):
-    json_body = json.dumps(body_data, sort_keys=True, indent=4, ensure_ascii=False,
-                           cls=NumpyEncoder).encode('utf8')
+def http_client_post(url, body_data, accumulate_time=True):
     logger.debug("[HTTP Start] [" + body_data['message'] + "] Start http client post to: " + url)
-    method = "POST"
-    headers = {'Content-Type': 'application/json; charset=UTF-8'}
-    http_client = httpclient.AsyncHTTPClient()
     request_start_time = time.time()
-    try:
-        request = httpclient.HTTPRequest(url=url, method=method, headers=headers, body=json_body, connect_timeout=300,
-                                         request_timeout=300)
-        response = await http_client.fetch(request)
-        logger.debug("[HTTP Success] [" + body_data['message'] + "] from " + url)
-        request_time = time.time() - request_start_time
-        if accumulate_time:
-            print("############# {} ############# {} ############# {} #############".format(url, body_data['message'], request_time))
-            add_communication_time(request_time)
-        return response.body
-    except Exception as e:
-        request_time = time.time() - request_start_time
-        if accumulate_time:
-            add_communication_time(request_time)
-        logger.error("[HTTP Error] [" + body_data['message'] + "] from " + url + " ERROR DETAIL: %s" % e)
-        return None
+    response = requests.post(url, json=body_data, timeout=300)
+    logger.debug("[HTTP Success] [" + body_data['message'] + "] from " + url)
+    request_time = time.time() - request_start_time
+    if accumulate_time:
+        add_communication_time(request_time)
+    return response.json()
 
 
 accumulate_communication_time = 0
@@ -300,28 +282,22 @@ def __decompress_data(data):
 
 
 # compress the tensor data
-async def compress_tensor(data):
-    numpy_data = await ioloop.IOLoop.current().run_in_executor(None, __convert_tensor_value_to_numpy, data)
-    compressed_data = await ioloop.IOLoop.current().run_in_executor(None, __compress_data, numpy_data)
+def compress_tensor(data):
+    compressed_data = __compress_data(__convert_tensor_value_to_numpy(data))
     return compressed_data
 
 
 # decompress the data into tensor
-async def decompress_tensor(data):
-    decompressed_data = await ioloop.IOLoop.current().run_in_executor(None, __decompress_data, data)
-    tensor_data = await ioloop.IOLoop.current().run_in_executor(None, __conver_numpy_value_to_tensor, decompressed_data)
+def decompress_tensor(data):
+    tensor_data = __conver_numpy_value_to_tensor(__decompress_data(data))
     return tensor_data
 
 
 # generate md5 hash for global model. Require a tensor type gradients.
-async def generate_md5_hash(model_weights):
-    # np_model_weights = __convert_tensor_value_to_numpy(model_weights)
-    np_model_weights = await ioloop.IOLoop.current().run_in_executor(
-        None, __convert_tensor_value_to_numpy, model_weights)
-    data_md5 = await ioloop.IOLoop.current().run_in_executor(
-        None, hashlib.md5, json.dumps(np_model_weights, sort_keys=True, cls=NumpyEncoder).encode('utf-8'))
-    # data_md5 = hashlib.md5(json.dumps(np_model_weights, sort_keys=True, cls=NumpyEncoder).encode('utf-8')).hexdigest()
-    return data_md5.hexdigest()
+def generate_md5_hash(model_weights):
+    np_model_weights = __convert_tensor_value_to_numpy(model_weights)
+    data_md5 = hashlib.md5(json.dumps(np_model_weights, sort_keys=True, cls=NumpyEncoder).encode('utf-8')).hexdigest()
+    return data_md5
 
 
 def disturb_w(w):
@@ -353,7 +329,7 @@ shutdown_count_num = 0
 ipMap = {}
 
 
-async def shutdown_count(uuid, from_ip, fed_listen_port, lock, num_users):
+def shutdown_count(uuid, from_ip, fed_listen_port, lock, num_users):
     lock.acquire()
     global shutdown_count_num
     global ipMap
@@ -368,7 +344,7 @@ async def shutdown_count(uuid, from_ip, fed_listen_port, lock, num_users):
         logger.debug('Send shutdown python request.')
         for uuid in ipMap.keys():
             client_url = "http://" + ipMap[uuid] + ":" + str(fed_listen_port) + "/trigger"
-            await http_client_post(client_url, body_data)
+            http_client_post(client_url, body_data)
 
 
 # time_list: [total_time, round_time, train_time, test_time, commu_time]
@@ -411,7 +387,7 @@ def record_log(user_id, epoch, time_list, acc_list, model, clean=False):
                                    + "\n")
 
 
-async def my_exit(exit_sleep):
-    await gen.sleep(exit_sleep)  # sleep for a while before exit
+def my_exit(exit_sleep):
+    time.sleep(exit_sleep)  # sleep for a while before exit
     logger.info("########## PYTHON SHUTTING DOWN! ##########")
     os._exit(0)
