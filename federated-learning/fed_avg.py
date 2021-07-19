@@ -1,23 +1,20 @@
-import asyncio
-import json
 import logging
 import os
 import sys
 import time
 import copy
 import threading
-from abc import ABC
-
 import torch
-from tornado import ioloop, web, httpserver
+from flask import Flask, request
 
-import utils
+import utils.util
 from utils.options import args_parser
 from utils.util import dataset_loader, model_loader, ColoredLogger
 from models.Update import local_update
 from models.Fed import FedAvg
 
 logging.setLoggerClass(ColoredLogger)
+logging.getLogger('werkzeug').setLevel(logging.ERROR)
 logger = logging.getLogger("fed_avg")
 
 # TO BE CHANGED
@@ -52,11 +49,6 @@ g_train_global_model_epoch = None
 shutdown_count_num = 0
 
 
-def test(data):
-    detail = {"data": data}
-    return "yes", detail
-
-
 def init():
     global net_glob
     global dataset_train
@@ -86,13 +78,13 @@ def init():
     g_train_global_model_epoch = -1  # -1 means the initial global model
 
 
-async def train(uuid, w_glob, epochs):
+def train(uuid, w_glob, epochs):
     global g_init_time
     start_time = time.time()
     logger.debug('Train local model for user: %s, epoch: %s.' % (uuid, epochs))
 
     if uuid is None:
-        uuid = await fetch_uuid()
+        uuid = fetch_uuid()
 
     if epochs is None:
         epochs = args.epochs
@@ -110,9 +102,8 @@ async def train(uuid, w_glob, epochs):
             'epochs': -1,
         }
         logger.debug('fetch initial global model from: %s' % trigger_url)
-        result = await utils.util.http_client_post(trigger_url, body_data)
-        response_json = json.loads(result)
-        detail = response_json.get("detail")
+        result = utils.util.http_client_post(trigger_url, body_data)
+        detail = result.get("detail")
         global_model_compressed = detail.get("global_model")
         w_glob = utils.util.decompress_tensor(global_model_compressed)
         logger.debug('Downloaded initial global model hash: ' + utils.util.generate_md5_hash(w_glob))
@@ -145,15 +136,15 @@ async def train(uuid, w_glob, epochs):
         'start_time': start_time,
         'train_time': train_time,
     }
-    await utils.util.http_client_post(trigger_url, upload_data)
+    utils.util.http_client_post(trigger_url, upload_data)
 
 
-async def start_train():
-    await asyncio.sleep(args.start_sleep)
-    await train(None, None, None)
+def start_train():
+    time.sleep(args.start_sleep)
+    train(None, None, None)
 
 
-async def gathered_global_w(uuid, epochs, w_glob_compressed, start_time, train_time):
+def gathered_global_w(uuid, epochs, w_glob_compressed, start_time, train_time):
     logger.debug('Received latest global model for user: %s, epoch: %s.' % (uuid, epochs))
 
     # load hash of new global model, which is downloaded from the leader
@@ -176,12 +167,12 @@ async def gathered_global_w(uuid, epochs, w_glob_compressed, start_time, train_t
     # before start next round, record the time
     total_time = time.time() - g_init_time[str(uuid)]
     round_time = time.time() - start_time
-    communication_time = round_time - train_time - test_time
+    communication_time = utils.util.reset_communication_time()
     utils.util.record_log(uuid, epochs, [total_time, round_time, train_time, test_time, communication_time],
                           [acc_local, acc_local_skew1, acc_local_skew2, acc_local_skew3, acc_local_skew4], args.model)
     if new_epochs > 0:
         # reset a new time for next round
-        asyncio.ensure_future(train(uuid, w_glob, new_epochs))
+        train(uuid, w_glob, new_epochs)
     else:
         logger.info("########## ALL DONE! ##########")
         from_ip = utils.util.get_ip(args.test_ip_addr)
@@ -190,10 +181,10 @@ async def gathered_global_w(uuid, epochs, w_glob_compressed, start_time, train_t
             'uuid': uuid,
             'from_ip': from_ip,
         }
-        await utils.util.http_client_post(trigger_url, body_data)
+        utils.util.http_client_post(trigger_url, body_data)
 
 
-async def release_global_w(epochs):
+def release_global_w(epochs):
     lock.acquire()
     global g_uuid
     global wMap
@@ -214,10 +205,10 @@ async def release_global_w(epochs):
             'train_time': train_time,
         }
         my_url = "http://" + ipMap[uuid] + ":" + str(fed_listen_port) + "/trigger"
-        await utils.util.http_client_post(my_url, data)
+        utils.util.http_client_post(my_url, data)
 
 
-async def average_local_w(uuid, epochs, w_compressed, from_ip, start_time, train_time):
+def average_local_w(uuid, epochs, w_compressed, from_ip, start_time, train_time):
     lock.acquire()
     global wMap
     global ipMap
@@ -233,21 +224,20 @@ async def average_local_w(uuid, epochs, w_compressed, from_ip, start_time, train
     lock.release()
     if len(wMap) == args.num_users:
         logger.debug("Gathered enough w, average and release them")
-        asyncio.ensure_future(release_global_w(epochs))
+        release_global_w(epochs)
 
 
-async def fetch_uuid():
+def fetch_uuid():
     fetch_data = {
         'message': 'fetch_uuid',
     }
-    response = await utils.util.http_client_post(trigger_url, fetch_data)
-    response_json = json.loads(response)
-    detail = response_json.get("detail")
+    response = utils.util.http_client_post(trigger_url, fetch_data)
+    detail = response.get("detail")
     uuid = detail.get("uuid")
     return uuid
 
 
-async def load_uuid():
+def load_uuid():
     lock.acquire()
     global g_uuid
     g_uuid += 1
@@ -256,7 +246,7 @@ async def load_uuid():
     return detail
 
 
-async def load_global_model(epochs):
+def load_global_model(epochs):
     if epochs == g_train_global_model_epoch:
         detail = {
             "global_model": g_train_global_model,
@@ -268,34 +258,34 @@ async def load_global_model(epochs):
     return detail
 
 
-class TriggerHandler(web.RequestHandler, ABC):
-
-    async def post(self):
-        data = json.loads(self.request.body)
-        status = "yes"
-        detail = {}
-        self.set_header("Content-Type", "application/json")
-
-        message = data.get("message")
-        if message == "fetch_uuid":
-            detail = await load_uuid()
-        elif message == "global_model":
-            detail = await load_global_model(data.get("epochs"))
-        elif message == "upload_local_w":
-            await average_local_w(data.get("uuid"), data.get("epochs"), data.get("w_compressed"), data.get("from_ip"),
-                                  data.get("start_time"), data.get("train_time"))
-        elif message == "release_global_w":
-            await gathered_global_w(data.get("uuid"), data.get("epochs"), data.get("w_glob"),
-                                    data.get("start_time"), data.get("train_time"))
-        elif message == "shutdown_python":
-            detail = await utils.util.shutdown_count(data.get("uuid"), data.get("from_ip"), fed_listen_port, lock,
-                                                     args.num_users)
-        elif message == "shutdown":
-            asyncio.ensure_future(utils.util.my_exit(args.exit_sleep))
-
-        response = {"status": status, "detail": detail}
-        in_json = json.dumps(response, sort_keys=True, indent=4, ensure_ascii=False).encode('utf8')
-        self.write(in_json)
+def my_route(app):
+    @app.route('/trigger', methods=['GET', 'POST'])
+    def trigger_handler():
+        # For POST
+        if request.method == 'POST':
+            data = request.get_json()
+            status = "yes"
+            detail = {}
+            message = data.get("message")
+            if message == "fetch_uuid":
+                detail = load_uuid()
+            elif message == "global_model":
+                detail = load_global_model(data.get("epochs"))
+            elif message == "upload_local_w":
+                threading.Thread(target=average_local_w, args=(
+                    data.get("uuid"), data.get("epochs"), data.get("w_compressed"), data.get("from_ip"),
+                    data.get("start_time"), data.get("train_time"))).start()
+            elif message == "release_global_w":
+                threading.Thread(target=gathered_global_w, args=(
+                    data.get("uuid"), data.get("epochs"), data.get("w_glob"), data.get("start_time"),
+                    data.get("train_time"))).start()
+            elif message == "shutdown_python":
+                threading.Thread(target=utils.util.shutdown_count, args=(
+                    data.get("uuid"), data.get("from_ip"), fed_listen_port, args.num_users)).start()
+            elif message == "shutdown":
+                threading.Thread(target=utils.util.my_exit, args=(args.exit_sleep, )).start()
+            response = {"status": status, "detail": detail}
+            return response
 
 
 def main():
@@ -323,15 +313,12 @@ def main():
     # init dataset and global model
     init()
 
-    asyncio.ensure_future(start_train())
+    threading.Thread(target=start_train, args=()).start()
 
-    app = web.Application([
-        (r"/trigger", TriggerHandler),
-    ])
-    http_server = httpserver.HTTPServer(app, max_buffer_size=10485760000)  # 10GB
-    http_server.listen(fed_listen_port)
+    flask_app = Flask(__name__)
+    my_route(flask_app)
     logger.info("start serving at " + str(fed_listen_port) + "...")
-    ioloop.IOLoop.current().start()
+    flask_app.run(host='0.0.0.0', port=fed_listen_port)
 
 
 if __name__ == "__main__":

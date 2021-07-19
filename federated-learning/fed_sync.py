@@ -163,7 +163,7 @@ def train(uuid, epochs, start_time):
         'start_time': start_time,
         'train_time': train_time
     }
-    utils.util.http_client_post(trigger_url, body_data, False)
+    utils.util.http_client_post(trigger_url, body_data)
 
     # send hash of local model to the ledger
     model_md5 = utils.util.generate_md5_hash(w_local)
@@ -282,13 +282,13 @@ def round_finish(uuid, epochs):
             'uuid': uuid,
             'epochs': new_epochs,
         }
-        utils.util.http_client_post(trigger_url, body_data, False)
+        utils.util.http_client_post(trigger_url, body_data)
     else:
         logger.info("########## ALL DONE! ##########")
         body_data = {
             'message': 'shutdown_python'
         }
-        utils.util.http_client_post(trigger_url, body_data, False)
+        utils.util.http_client_post(trigger_url, body_data)
 
 
 # count for STEP #7 the next round requests gathered
@@ -326,7 +326,7 @@ def shutdown_count():
             'data': {},
             'uuid': "",
             'epochs': 0,
-            'is_sync': False
+            'is_sync': True
         }
         logger.debug('Sent shutdown python request to blockchain.')
         utils.util.http_client_post(blockchain_server_url, body_data)
@@ -374,11 +374,11 @@ def my_route(app):
             # Then judge message type and process
             message = data.get("message")
             if message == "prepare":
-                train(data.get("uuid"), data.get("epochs"), time.time())
+                threading.Thread(target=train, args=(data.get("uuid"), data.get("epochs"), time.time())).start()
             elif message == "global_model_update":
-                round_finish(data.get("uuid"), data.get("epochs"))
+                threading.Thread(target=round_finish, args=(data.get("uuid"), data.get("epochs"))).start()
             elif message == "shutdown":
-                utils.util.my_exit(args.exit_sleep)
+                threading.Thread(target=utils.util.my_exit, args=(args.exit_sleep, )).start()
             return response
 
     @app.route('/trigger', methods=['GET', 'POST'])
@@ -391,16 +391,17 @@ def my_route(app):
             message = data.get("message")
 
             if message == "train_ready":
-                train_count(data.get("epochs"), data.get("uuid"), data.get("start_time"), data.get("train_time"),
-                            data.get("w_compressed"))
+                threading.Thread(target=train_count, args=(
+                    data.get("epochs"), data.get("uuid"), data.get("start_time"), data.get("train_time"),
+                    data.get("w_compressed"))).start()
             elif message == "global_model":
                 detail = download_global_model(data.get("epochs"))
             elif message == "next_round_count":
-                next_round_count(data.get("epochs"))
+                threading.Thread(target=next_round_count, args=(data.get("epochs"),)).start()
             elif message == "fetch_time":
                 detail = fetch_time(data.get("uuid"), data.get("epochs"))
             elif message == "shutdown_python":
-                shutdown_count()
+                threading.Thread(target=shutdown_count, args=()).start()
             response = {"status": status, "detail": detail}
             return response
 

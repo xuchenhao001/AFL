@@ -160,7 +160,7 @@ def train(uuid, epochs, start_time):
         'start_time': start_time,
         'train_time': train_time
     }
-    utils.util.http_client_post(trigger_url, body_data, False)
+    utils.util.http_client_post(trigger_url, body_data)
 
     # send hash of local model to the ledger
     model_md5 = utils.util.generate_md5_hash(w_local)
@@ -317,7 +317,7 @@ def round_finish(uuid, epochs):
         body_data = {
             'message': 'shutdown_python'
         }
-        utils.util.http_client_post(trigger_url, body_data, False)
+        utils.util.http_client_post(trigger_url, body_data)
 
 
 def shutdown_count():
@@ -376,9 +376,9 @@ def my_route(app):
             # Then judge message type and process
             message = data.get("message")
             if message == "prepare":
-                train(data.get("uuid"), data.get("epochs"), time.time())
+                threading.Thread(target=train, args=(data.get("uuid"), data.get("epochs"), time.time())).start()
             elif message == "shutdown":
-                utils.util.my_exit(args.exit_sleep)
+                threading.Thread(target=utils.util.my_exit, args=(args.exit_sleep, )).start()
             return response
 
     @app.route('/trigger', methods=['GET', 'POST'])
@@ -390,14 +390,15 @@ def my_route(app):
             detail = {}
             message = data.get("message")
             if message == "train_ready":
-                aggregate(data.get("epochs"), data.get("uuid"), data.get("start_time"), data.get("train_time"),
-                          data.get("w_compressed"))
+                threading.Thread(target=aggregate, args=(
+                    data.get("epochs"), data.get("uuid"), data.get("start_time"), data.get("train_time"),
+                    data.get("w_compressed"))).start()
             elif message == "global_model":
                 detail = download_global_model()
             elif message == "fetch_time":
                 detail = fetch_time(data.get("uuid"), data.get("epochs"))
             elif message == "shutdown_python":
-                shutdown_count()
+                threading.Thread(target=shutdown_count, args=()).start()
             response = {"status": status, "detail": detail}
             return response
 
