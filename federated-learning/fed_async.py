@@ -1,4 +1,3 @@
-import json
 import logging
 import os
 import sys
@@ -318,7 +317,7 @@ def round_finish(uuid, epochs):
         body_data = {
             'message': 'shutdown_python'
         }
-        utils.util.http_client_post(trigger_url, body_data)
+        utils.util.http_client_post(trigger_url, body_data, False)
 
 
 def shutdown_count():
