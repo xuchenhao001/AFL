@@ -62,8 +62,7 @@ function main() {
             for i in "${!PeerAddress[@]}"; do
               addrIN=(${PeerAddress[i]//:/ })
               dataset_train_size=${TrainDataSize[i]}
-              dataset_test_size=${TestDataSize[i]}
-              ./restart_core.sh ${HostUser} ${addrIN[0]} "fed_async" "$model" "$dataset" "$is_iid" "$dataset_train_size" "$dataset_test_size" "$fade"
+              ./restart_core.sh ${HostUser} ${addrIN[0]} "fed_async" "$model" "$dataset" "$is_iid" "$dataset_train_size" "$fade"
             done
             sleep 60
             curl -i -X GET 'http://localhost:8888/messages'
