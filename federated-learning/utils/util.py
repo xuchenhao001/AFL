@@ -107,7 +107,7 @@ def dataset_loader(dataset_name, dataset_train_size, isIID, num_users):
         else:
             dict_users, test_users, skew_users = noniid_onepass(dataset_train, dataset_train_size, dataset_test,
                                                                 dataset_test_size, num_users, dataset_name=dataset_name)
-    elif dataset_name == 'fashion-mnist':
+    elif dataset_name == 'fashion_mnist':
         trans_fashion = transforms.Compose([transforms.ToTensor()])
         mnist_data_path = os.path.join(real_path, "../../data/fashion-mnist/")
         dataset_train = datasets.FashionMNIST(mnist_data_path, train=True, download=True, transform=trans_fashion)
@@ -168,7 +168,7 @@ def model_loader(model_name, dataset_name, device, num_channels, num_classes, im
         net_glob = CNNCifar(num_classes).to(device)
     elif model_name == 'cnn' and dataset_name == 'mnist':
         net_glob = CNNMnist(num_channels, num_classes).to(device)
-    elif model_name == 'cnn' and dataset_name == 'fashion-mnist':
+    elif model_name == 'cnn' and dataset_name == 'fashion_mnist':
         net_glob = CNNFashion(num_channels, num_classes).to(device)
     elif model_name == 'cnn' and dataset_name == 'uci':
         net_glob = UCI_CNN(n_class=6).to(device)

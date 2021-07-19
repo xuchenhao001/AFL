@@ -26,7 +26,7 @@ def args_parser():
                         help="Whether use max pooling rather than strided convolutions")
     parser.add_argument('--hyper', type=float, default=0.3, help='hypermeter alpha')
 
-    # support dataset: "mnist", "fashion-mnist", "cifar", "uci", "realworld", "loop"
+    # support dataset: "mnist", "fashion_mnist", "cifar", "uci", "realworld", "loop"
     parser.add_argument('--dataset', type=str, default='loop', help="name of dataset")
     parser.add_argument('--iid', action='store_true', help='whether i.i.d or not')
     parser.add_argument('--num_classes', type=int, default=10, help="number of classes")
