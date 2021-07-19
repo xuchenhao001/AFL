@@ -52,17 +52,17 @@ npm install
 
 ### Federated Learning
 
-Require matplotlib (>=3.3.1), numpy (>=1.18.5), torch (>=1.7.1) torchvision (>=0.8.2) tornado (>=6.1) and sklearn.
+Require matplotlib (>=3.3.1), numpy (>=1.18.5), torch (>=1.7.1) torchvision (>=0.8.2) flask (>=2.0.1) and sklearn.
 
 ```bash
-pip3 install matplotlib numpy torch torchvision tornado sklearn hickle pandas
+pip3 install matplotlib numpy torch torchvision flask sklearn hickle pandas
 ```
 
 For Raspberry PI, download wheels from [here](https://github.com/Qengineering/PyTorch-Raspberry-Pi-64-OS), then:
 ```
 sudo apt install -y python3-h5py libopenblas-dev
 # Download the torch wheels from the website, then install the wheels. Finally:
-pip3 install matplotlib numpy tornado sklearn hickle pandas
+pip3 install matplotlib numpy flask sklearn hickle pandas
 ```
 
 ### GPU

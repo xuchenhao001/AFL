@@ -1,5 +1,3 @@
-import asyncio
-import json
 import logging
 import os
 import sys
@@ -8,7 +6,7 @@ import subprocess
 import copy
 import threading
 import torch
-from tornado import ioloop, web
+from flask import Flask, request
 
 import utils
 from utils.options import args_parser
@@ -16,6 +14,7 @@ from models.Update import local_update
 from utils.util import dataset_loader, model_loader, ColoredLogger
 
 logging.setLoggerClass(ColoredLogger)
+logging.getLogger('werkzeug').setLevel(logging.ERROR)
 logger = logging.getLogger("local_train")
 
 # TO BE CHANGED
@@ -37,14 +36,6 @@ g_user_id = 0
 lock = threading.Lock()
 g_init_time = {}
 shutdown_count_num = 0
-
-
-# returns variable from sourcing a file
-def env_from_sourcing(file_to_source_path, variable_name):
-    source = 'source %s && export MYVAR=$(echo "${%s[@]}")' % (file_to_source_path, variable_name)
-    dump = '/usr/bin/python3 -c "import os, json; print(os.getenv(\'MYVAR\'))"'
-    pipe = subprocess.Popen(['/bin/bash', '-c', '%s && %s' % (source, dump)], stdout=subprocess.PIPE)
-    return pipe.stdout.read().decode("utf-8").rstrip()
 
 
 # init: loads the dataset and global model
@@ -70,12 +61,12 @@ def init():
     net_glob.train()
 
 
-async def train(user_id):
+def train(user_id):
     global args
     global g_init_time
 
     if user_id is None:
-        user_id = await fetch_user_id()
+        user_id = fetch_user_id()
 
     # training for all epochs
     for iter in reversed(range(args.epochs)):
@@ -119,12 +110,12 @@ async def train(user_id):
         'uuid': user_id,
         'from_ip': from_ip,
     }
-    await utils.util.http_client_post(trigger_url, body_data)
+    utils.util.http_client_post(trigger_url, body_data)
 
 
-async def start_train():
-    await asyncio.sleep(args.start_sleep)
-    await train(None)
+def start_train():
+    time.sleep(args.start_sleep)
+    train(None)
 
 
 def test(data):
@@ -132,7 +123,7 @@ def test(data):
     return detail
 
 
-async def load_user_id():
+def load_user_id():
     lock.acquire()
     global g_user_id
     g_user_id += 1
@@ -141,45 +132,34 @@ async def load_user_id():
     return detail
 
 
-async def fetch_user_id():
+def fetch_user_id():
     fetch_data = {
         'message': 'fetch_user_id',
     }
-    response = await utils.util.http_client_post(trigger_url, fetch_data)
-    responseObj = json.loads(response)
-    detail = responseObj.get("detail")
+    response = utils.util.http_client_post(trigger_url, fetch_data)
+    detail = response.get("detail")
     user_id = detail.get("user_id")
     return user_id
 
 
-class MainHandler(web.RequestHandler):
-
-    async def get(self):
-        response = {"status": "yes", "detail": "test"}
-        in_json = json.dumps(response, sort_keys=True, indent=4, ensure_ascii=False).encode('utf8')
-        self.set_header("Content-Type", "application/json")
-        self.write(in_json)
-
-    async def post(self):
-        data = json.loads(self.request.body)
-        status = "yes"
-        detail = {}
-        self.set_header("Content-Type", "application/json")
-
-        message = data.get("message")
-        if message == "test":
-            detail = test(data.get("weight"))
-        elif message == "fetch_user_id":
-            detail = await load_user_id()
-        elif message == "shutdown_python":
-            detail = await utils.util.shutdown_count(data.get("uuid"), data.get("from_ip"), fed_listen_port, lock,
-                                                     args.num_users)
-        elif message == "shutdown":
-            asyncio.ensure_future(utils.util.my_exit(args.exit_sleep))
-
-        response = {"status": status, "detail": detail}
-        in_json = json.dumps(response, sort_keys=True, indent=4, ensure_ascii=False).encode('utf8')
-        self.write(in_json)
+def my_route(app):
+    @app.route('/trigger', methods=['GET', 'POST'])
+    def trigger_handler():
+        # For POST
+        if request.method == 'POST':
+            data = request.get_json()
+            status = "yes"
+            detail = {}
+            message = data.get("message")
+            if message == "fetch_user_id":
+                detail = load_user_id()
+            elif message == "shutdown_python":
+                threading.Thread(target=utils.util.shutdown_count, args=(
+                    data.get("uuid"), data.get("from_ip"), fed_listen_port, args.num_users)).start()
+            elif message == "shutdown":
+                threading.Thread(target=utils.util.my_exit, args=(args.exit_sleep, )).start()
+            response = {"status": status, "detail": detail}
+            return response
 
 
 def main():
@@ -194,7 +174,8 @@ def main():
 
     # parse network.config and read the peer addresses
     real_path = os.path.dirname(os.path.realpath(__file__))
-    peer_address_var = env_from_sourcing(os.path.join(real_path, "../fabric-network/network.config"), "PeerAddress")
+    peer_address_var = utils.util.env_from_sourcing(os.path.join(real_path, "../fabric-network/network.config"),
+                                                    "PeerAddress")
     peer_address_list = peer_address_var.split(' ')
     peer_addrs = [peer_addr.split(":")[0] for peer_addr in peer_address_list]
     peer_header_addr = peer_addrs[0]
@@ -206,14 +187,12 @@ def main():
     # init dataset and global model
     init()
 
-    asyncio.ensure_future(start_train())
+    threading.Thread(target=start_train, args=()).start()
 
-    app = web.Application([
-        (r"/trigger", MainHandler),
-    ])
-    app.listen(fed_listen_port)
+    flask_app = Flask(__name__)
+    my_route(flask_app)
     logger.info("start serving at " + str(fed_listen_port) + "...")
-    ioloop.IOLoop.current().start()
+    flask_app.run(host='0.0.0.0', port=fed_listen_port)
 
 
 if __name__ == "__main__":

@@ -329,7 +329,7 @@ shutdown_count_num = 0
 ipMap = {}
 
 
-def shutdown_count(uuid, from_ip, fed_listen_port, lock, num_users):
+def shutdown_count(uuid, from_ip, fed_listen_port, num_users):
     lock.acquire()
     global shutdown_count_num
     global ipMap
