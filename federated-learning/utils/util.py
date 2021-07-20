@@ -132,6 +132,7 @@ def dataset_loader(dataset_name, dataset_train_size, isIID, num_users):
             dict_users, test_users, skew_users = noniid_onepass(dataset_train, dataset_train_size, dataset_test,
                                                                 dataset_test_size, num_users, dataset_name=dataset_name)
     elif dataset_name == 'uci':
+        # https://archive.ics.uci.edu/ml/datasets/human+activity+recognition+using+smartphones
         uci_data_path = os.path.join(real_path, "../../data/uci/")
         dataset_train = UCIDataset(data_path=uci_data_path, phase='train')
         dataset_test = UCIDataset(data_path=uci_data_path, phase='eval')
@@ -142,6 +143,7 @@ def dataset_loader(dataset_name, dataset_train_size, isIID, num_users):
             dict_users, test_users, skew_users = noniid_onepass(dataset_train, dataset_train_size, dataset_test,
                                                                 dataset_test_size, num_users, dataset_name=dataset_name)
     elif dataset_name == 'realworld':
+        # https://sensor.informatik.uni-mannheim.de/#dataset_realworld
         realworld_data_path = os.path.join(real_path, "../../data/realworld_client/")
         dataset_train = REALWORLDDataset(data_path=realworld_data_path, phase='train')
         dataset_test = REALWORLDDataset(data_path=realworld_data_path, phase='eval')
@@ -152,6 +154,7 @@ def dataset_loader(dataset_name, dataset_train_size, isIID, num_users):
             dict_users, test_users, skew_users = noniid_onepass(dataset_train, dataset_train_size, dataset_test,
                                                                 dataset_test_size, num_users, dataset_name=dataset_name)
     elif dataset_name == 'loop':
+        # https://github.com/zhiyongc/Seattle-Loop-Data
         loop_data_path = os.path.join(real_path, "../../data/loop/")
         dataset_train = LOOPDataset(data_path=loop_data_path, phase='train')
         dataset_test = LOOPDataset(data_path=loop_data_path, phase='eval')
@@ -373,7 +376,7 @@ def record_log(user_id, epoch, time_list, acc_list, model, clean=False):
     else:
         with open(filename, "a") as time_record_file:
             current_time = time.strftime("%H:%M:%S", time.localtime())
-            time_record_file.write(current_time + "[" + f"{epoch + 1:0>2}" + "]"
+            time_record_file.write(current_time + "[" + "{:03d}".format(epoch) + "]"
                                    + " <Total Time> " + str(time_list[0])[:8]
                                    + " <Round Time> " + str(time_list[1])[:8]
                                    + " <Train Time> " + str(time_list[2])[:8]

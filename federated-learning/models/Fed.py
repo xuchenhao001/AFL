@@ -1,10 +1,5 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-# Python version: 3.6
-
 import copy
 import torch
-from torch import nn
 
 
 def FedAvg(w):
@@ -23,6 +18,6 @@ def FedAvg(w):
 def FadeFedAvg(global_w, new_local_w, fade_c):
     w_avg = copy.deepcopy(global_w)
     for k in w_avg.keys():
-        w_avg[k] += fade_c * new_local_w[k]
+        w_avg[k] = w_avg[k] + torch.mul(new_local_w[k], fade_c)
         w_avg[k] = torch.div(w_avg[k], 1 + fade_c)
     return w_avg

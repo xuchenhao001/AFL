@@ -198,13 +198,11 @@ def aggregate(epochs, uuid, start_time, train_time, w_compressed):
     # aggregate global model
     if g_train_global_model is not None:
         fade_c = calculate_fade_c(int(epochs), uuid, w_glob)
-        logger.debug("calculated fade_c: %f" % fade_c)
         w_glob = FadeFedAvg(g_train_global_model, w_glob, fade_c)
     # save global model for further download
-    gm_compressed = utils.util.compress_tensor(w_glob)
+    g_train_global_model_compressed = utils.util.compress_tensor(w_glob)
     lock.acquire()
     g_train_global_model = w_glob
-    g_train_global_model_compressed = gm_compressed
     g_train_global_model_version += 1
     lock.release()
     # generate hash of global model
@@ -236,14 +234,13 @@ def calculate_fade_c(epoch, uuid, w_glob):
 
         acc_local, acc_local_skew1, acc_local_skew2, acc_local_skew3, acc_local_skew4 = \
             utils.util.test_model(net_glob, dataset_test, args, test_users, skew_users, idx)
-
+        logger.debug("after test, acc_local: {}, current_acc_local: {}".format(acc_local, current_acc_local))
         if acc_local > current_acc_local:
             fade_c = 1.5
         elif acc_local < current_acc_local:
             fade_c = 0.5
         else:
             fade_c = 1.0
-        return fade_c
     else:
         # static fade setting
         if fade_count is None:
@@ -256,7 +253,8 @@ def calculate_fade_c(epoch, uuid, w_glob):
             fade_range = 1 - fade_target
             fade_c = 1 - fade_range * fade_ratio
         fade_count[epoch - 1] += 1
-        return fade_c
+    logger.debug("calculated fade_c: %f" % fade_c)
+    return fade_c
 
 
 # STEP #7
