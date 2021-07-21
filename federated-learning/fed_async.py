@@ -44,8 +44,7 @@ g_train_global_model = None
 g_train_global_model_compressed = None
 g_train_global_model_version = 0
 shutdown_count_num = 0
-fade_count = None  # for each epoch, record the number of submitted local model
-current_acc_local = 0
+current_acc_local = -1
 
 
 # STEP #1
@@ -197,7 +196,7 @@ def aggregate(epochs, uuid, start_time, train_time, w_compressed):
     w_glob = utils.util.decompress_tensor(w_compressed)
     # aggregate global model
     if g_train_global_model is not None:
-        fade_c = calculate_fade_c(int(epochs), uuid, w_glob)
+        fade_c = calculate_fade_c(uuid, w_glob, args.fade, args.model)
         w_glob = FadeFedAvg(g_train_global_model, w_glob, fade_c)
     # save global model for further download
     g_train_global_model_compressed = utils.util.compress_tensor(w_glob)
@@ -223,9 +222,7 @@ def aggregate(epochs, uuid, start_time, train_time, w_compressed):
     utils.util.http_client_post(blockchain_server_url, body_data)
 
 
-def calculate_fade_c(epoch, uuid, w_glob):
-    global fade_count
-    fade_target = args.fade
+def calculate_fade_c(uuid, w_glob, fade_target, model):
     if fade_target == -1:  # -1 means fade dynamic setting
         # dynamic fade setting, test new acc_local first
         net_glob.load_state_dict(w_glob)
@@ -235,24 +232,27 @@ def calculate_fade_c(epoch, uuid, w_glob):
         acc_local, acc_local_skew1, acc_local_skew2, acc_local_skew3, acc_local_skew4 = \
             utils.util.test_model(net_glob, dataset_test, args, test_users, skew_users, idx)
         logger.debug("after test, acc_local: {}, current_acc_local: {}".format(acc_local, current_acc_local))
-        if acc_local > current_acc_local:
-            fade_c = 1.5
-        elif acc_local < current_acc_local:
-            fade_c = 0.5
+        if model == "lstm":  # for lstm, acc_local means the mse loss instead of accuracy, the less the better
+            if current_acc_local == -1:
+                fade_c = 1.5
+            elif acc_local < current_acc_local:
+                fade_c = 1.5
+            elif acc_local > current_acc_local:
+                fade_c = 0.5
+            else:
+                fade_c = 1.0
         else:
-            fade_c = 1.0
+            if current_acc_local == -1:
+                fade_c = 1.5
+            elif acc_local > current_acc_local:
+                fade_c = 1.5
+            elif acc_local < current_acc_local:
+                fade_c = 0.5
+            else:
+                fade_c = 1.0
     else:
         # static fade setting
-        if fade_count is None:
-            fade_count = [0] * args.epochs
-        fade_ratio = fade_count[epoch - 1] / (args.num_users - 1)
-        if fade_target > 1:
-            fade_range = fade_target - 1
-            fade_c = fade_range * fade_ratio + 1
-        else:
-            fade_range = 1 - fade_target
-            fade_c = 1 - fade_range * fade_ratio
-        fade_count[epoch - 1] += 1
+        fade_c = fade_target
     logger.debug("calculated fade_c: %f" % fade_c)
     return fade_c
 

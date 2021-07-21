@@ -64,7 +64,7 @@ function main() {
               dataset_train_size=${TrainDataSize[i]}
               ./restart_core.sh ${HostUser} ${addrIN[0]} "fed_async" "$model" "$dataset" "$is_iid" "$dataset_train_size" "$fade"
             done
-            sleep 60
+            sleep 300
             curl -i -X GET 'http://localhost:8888/messages'
             # detect test finish or not
             testFinish "[f]ed_async.py"
