@@ -203,6 +203,10 @@ def train_count(epochs, uuid, start_time, train_time, w_compressed):
     lock.release()
     if train_count_num == args.num_users:
         logger.debug("Gathered enough train_ready, aggregate global model and send the download link.")
+        # reset counts
+        lock.acquire()
+        train_count_num = 0
+        lock.release()
         # aggregate global model first
         w_glob = FedAvg(g_train_local_models)
         # release g_train_local_models after aggregation
@@ -293,7 +297,6 @@ def round_finish(uuid, epochs):
 
 # count for STEP #7 the next round requests gathered
 def next_round_count(epochs):
-    global train_count_num
     global next_round_count_num
     lock.acquire()
     next_round_count_num += 1
@@ -301,7 +304,6 @@ def next_round_count(epochs):
     if next_round_count_num == args.num_users:
         # reset counts
         lock.acquire()
-        train_count_num = 0
         next_round_count_num = 0
         lock.release()
         # START NEXT ROUND
