@@ -6,7 +6,7 @@ model=$4
 dataset=$5
 is_iid=$6
 dataset_train_size=$7
-fade=$9
+fade=$8
 
 
 FIRST_CHAR=$(echo ${test_name} | cut -c1-1)
