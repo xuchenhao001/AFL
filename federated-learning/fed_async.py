@@ -37,6 +37,7 @@ test_users = []
 skew_users = []
 peer_address_list = []
 global_model_hash = ""
+g_my_uuid = -1
 g_init_time = {}
 g_start_time = {}
 g_train_time = {}
@@ -116,8 +117,11 @@ def start():
 
 # STEP #2
 def train(uuid, epochs, start_time):
+    global g_my_uuid
     global g_init_time
     logger.debug('Train local model for user: %s, epoch: %s.' % (uuid, epochs))
+    if g_my_uuid == -1:
+        g_my_uuid = uuid  # init my_uuid at the first time
 
     # calculate initial model accuracy, record it as the bench mark.
     idx = int(uuid) - 1
@@ -255,13 +259,13 @@ def calculate_fade_c(uuid, w_local, fade_target, model):
     return fade_c
 
 
-def intermediate_acc_record(uuid, w_glob):
+def intermediate_acc_record(w_glob):
     net_glob.load_state_dict(w_glob)
     net_glob.eval()
-    idx = int(uuid) - 1
+    idx = int(g_my_uuid) - 1
     acc_local, acc_local_skew1, acc_local_skew2, acc_local_skew3, acc_local_skew4 = \
         utils.util.test_model(net_glob, dataset_test, args, test_users, skew_users, idx)
-    utils.util.record_log(uuid, 0, [0.0, 0.0, 0.0, 0.0, 0.0],
+    utils.util.record_log(g_my_uuid, 0, [0.0, 0.0, 0.0, 0.0, 0.0],
                           [acc_local, acc_local_skew1, acc_local_skew2, acc_local_skew3, acc_local_skew4],
                           args.model, clean=True)
 
