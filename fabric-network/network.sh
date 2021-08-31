@@ -16,11 +16,7 @@ function printHelp() {
   echo "  network.sh <Mode> [Flags]"
   echo "    <Mode>"
   echo "      - 'up' - bring up fabric orderer and peer nodes. No channel is created"
-  echo "      - 'up createChannel' - bring up fabric network with one channel"
-  echo "      - 'createChannel' - create and join a channel after the network is created"
-  echo "      - 'deployCC' - deploy the fabcar chaincode on the channel"
   echo "      - 'down' - clear the network with docker-compose down"
-  echo "      - 'restart' - restart the network"
   echo
   echo "    Flags:"
   echo "    -ca <use CAs> -  create Certificate Authorities to generate the crypto material"
@@ -34,20 +30,6 @@ function printHelp() {
   echo "    -cai <ca_imagetag> - the image tag to be used for CA (defaults to \"${CA_IMAGETAG}\")"
   echo "    -verbose - verbose mode"
   echo "  network.sh -h (print this message)"
-  echo
-  echo " Possible Mode and flags"
-  echo "  network.sh up -ca -c -r -d -s -i -verbose"
-  echo "  network.sh up createChannel -ca -c -r -d -s -i -verbose"
-  echo "  network.sh createChannel -c -r -d -verbose"
-  echo "  network.sh deployCC -l -v -r -d -verbose"
-  echo
-  echo " Taking all defaults:"
-  echo "  network.sh up"
-  echo
-  echo " Examples:"
-  echo "  network.sh up createChannel -ca -c mychannel -s couchdb -i 2.0.0"
-  echo "  network.sh createChannel -c channelName"
-  echo "  network.sh deployCC -l javascript"
 }
 
 # Obtain CONTAINER_IDS and remove them
@@ -373,15 +355,10 @@ fi
 
 if [ "${MODE}" == "up" ]; then
   networkUp
-elif [ "${MODE}" == "createChannel" ]; then
   createChannel
-elif [ "${MODE}" == "deployCC" ]; then
   deployCC
 elif [ "${MODE}" == "down" ]; then
   networkDown
-elif [ "${MODE}" == "restart" ]; then
-  networkDown
-  networkUp
 else
   printHelp
   exit 1

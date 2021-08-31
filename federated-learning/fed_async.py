@@ -233,24 +233,18 @@ def calculate_fade_c(uuid, w_glob, fade_target, model):
         acc_local, acc_local_skew1, acc_local_skew2, acc_local_skew3, acc_local_skew4 = \
             utils.util.test_model(net_glob, dataset_test, args, test_users, skew_users, idx)
         logger.debug("after test, acc_local: {}, current_acc_local: {}".format(acc_local, current_acc_local))
-        if model == "lstm":  # for lstm, acc_local means the mse loss instead of accuracy, the less the better
+        if model == "lstm":
+            # for lstm, acc_local means the mse loss instead of accuracy, the less the better
             if current_acc_local == -1:
                 fade_c = 1.5
-            elif acc_local < current_acc_local:
-                fade_c = 1.5
-            elif acc_local > current_acc_local:
-                fade_c = 0.5
             else:
-                fade_c = 1.0
+                fade_c = current_acc_local / acc_local
         else:
+            # for cnn or mlp models, accuracy the higher the better.
             if current_acc_local == -1:
                 fade_c = 1.5
-            elif acc_local > current_acc_local:
-                fade_c = 1.5
-            elif acc_local < current_acc_local:
-                fade_c = 0.5
             else:
-                fade_c = 1.0
+                fade_c = acc_local / current_acc_local
     else:
         logger.debug("fade={}, static fade setting is adopted!".format(fade_target))
         # static fade setting
