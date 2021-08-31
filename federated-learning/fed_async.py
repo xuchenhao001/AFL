@@ -203,7 +203,7 @@ def aggregate(epochs, uuid, start_time, train_time, w_compressed):
         fade_c = calculate_fade_c(uuid, w_local, args.fade, args.model)
         w_glob = FadeFedAvg(g_train_global_model, w_local, fade_c)
     # test new global model acc and record onto the log
-    intermediate_acc_record(uuid, w_glob)
+    intermediate_acc_record(w_glob)
     # save global model for further download
     g_train_global_model_compressed = utils.util.compress_tensor(w_glob)
     lock.acquire()
