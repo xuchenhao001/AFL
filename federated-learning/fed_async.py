@@ -224,6 +224,7 @@ def aggregate(epochs, uuid, start_time, train_time, w_compressed):
 
 def calculate_fade_c(uuid, w_glob, fade_target, model):
     if fade_target == -1:  # -1 means fade dynamic setting
+        logger.debug("fade=-1, dynamic fade setting is adopted!")
         # dynamic fade setting, test new acc_local first
         net_glob.load_state_dict(w_glob)
         net_glob.eval()
@@ -251,6 +252,7 @@ def calculate_fade_c(uuid, w_glob, fade_target, model):
             else:
                 fade_c = 1.0
     else:
+        logger.debug("fade={}, static fade setting is adopted!".format(fade_target))
         # static fade setting
         fade_c = fade_target
     logger.debug("calculated fade_c: %f" % fade_c)

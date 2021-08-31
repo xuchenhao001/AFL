@@ -5,11 +5,11 @@ import numpy as np
 import pandas as pd
 
 
-def extract_file_lines(model_name, dataset_name, experiment):
+def extract_file_lines(exp_node_number, model_name, dataset_name, experiment):
     result_lines = []
     result_path = ""
     for path, dirs, files in os.walk("./output"):
-        if path.endswith(model_name + "-" + dataset_name):
+        if path.endswith(model_name + "-" + dataset_name) and exp_node_number in path:
             if experiment in dirs:
                 result_path = os.path.join(path, experiment)
                 break
@@ -58,14 +58,16 @@ def extract_by_timeline(result_value_dfs, sampling_frequency, final_time):
 
 
 def main():
-    sampling_frequency = 10  # sampling frequency (seconds)
-    final_time = 800
-    model_name = "mlp"
-    dataset_name = "mnist"
+    sampling_frequency = 3  # sampling frequency (seconds)
+    final_time = 300
+    # exp_node_number = "dis-4-network"
+    exp_node_number = "static-fade"
+    model_name = "cnn"
+    dataset_name = "cifar"
     # experiments = ["fed_async", "fed_avg", "fed_sync", "fed_localA", "local_train"]
-    experiments = ["fed_async", "fed_async_f00", "fed_async_f05", "fed_async_f10", "fed_async_f15", "fed_async_f20"]
+    experiments = ["fed_async_f05", "fed_async_f10", "fed_async_f15"]
     for experiment in experiments:
-        result_lines = extract_file_lines(model_name, dataset_name, experiment)
+        result_lines = extract_file_lines(exp_node_number, model_name, dataset_name, experiment)
         result_value_dfs = extract_values(result_lines)
         sampling_avg_list = extract_by_timeline(result_value_dfs, sampling_frequency, final_time)
         print(experiment, "=", sampling_avg_list)
