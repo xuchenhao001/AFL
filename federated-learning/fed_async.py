@@ -198,6 +198,8 @@ def aggregate(epochs, uuid, start_time, train_time, w_compressed):
     if g_train_global_model is not None:
         fade_c = calculate_fade_c(uuid, w_local, args.fade, args.model)
         w_glob = FadeFedAvg(g_train_global_model, w_local, fade_c)
+    # test new global model acc and record onto the log
+    intermediate_acc_record(uuid, w_glob)
     # save global model for further download
     g_train_global_model_compressed = utils.util.compress_tensor(w_glob)
     lock.acquire()
@@ -251,6 +253,17 @@ def calculate_fade_c(uuid, w_local, fade_target, model):
         fade_c = fade_target
     logger.debug("calculated fade_c: %f" % fade_c)
     return fade_c
+
+
+def intermediate_acc_record(uuid, w_glob):
+    net_glob.load_state_dict(w_glob)
+    net_glob.eval()
+    idx = int(uuid) - 1
+    acc_local, acc_local_skew1, acc_local_skew2, acc_local_skew3, acc_local_skew4 = \
+        utils.util.test_model(net_glob, dataset_test, args, test_users, skew_users, idx)
+    utils.util.record_log(uuid, 0, [0.0, 0.0, 0.0, 0.0, 0.0],
+                          [acc_local, acc_local_skew1, acc_local_skew2, acc_local_skew3, acc_local_skew4],
+                          args.model, clean=True)
 
 
 # STEP #7
