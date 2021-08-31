@@ -193,11 +193,11 @@ def aggregate(epochs, uuid, start_time, train_time, w_compressed):
     g_train_time[key] = train_time
     lock.release()
     logger.debug("Aggregate global model after received a new local model.")
-    w_glob = utils.util.decompress_tensor(w_compressed)
+    w_local = utils.util.decompress_tensor(w_compressed)
     # aggregate global model
     if g_train_global_model is not None:
-        fade_c = calculate_fade_c(uuid, w_glob, args.fade, args.model)
-        w_glob = FadeFedAvg(g_train_global_model, w_glob, fade_c)
+        fade_c = calculate_fade_c(uuid, w_local, args.fade, args.model)
+        w_glob = FadeFedAvg(g_train_global_model, w_local, fade_c)
     # save global model for further download
     g_train_global_model_compressed = utils.util.compress_tensor(w_glob)
     lock.acquire()
@@ -222,11 +222,11 @@ def aggregate(epochs, uuid, start_time, train_time, w_compressed):
     utils.util.http_client_post(blockchain_server_url, body_data)
 
 
-def calculate_fade_c(uuid, w_glob, fade_target, model):
+def calculate_fade_c(uuid, w_local, fade_target, model):
     if fade_target == -1:  # -1 means fade dynamic setting
         logger.debug("fade=-1, dynamic fade setting is adopted!")
         # dynamic fade setting, test new acc_local first
-        net_glob.load_state_dict(w_glob)
+        net_glob.load_state_dict(w_local)
         net_glob.eval()
         idx = int(uuid) - 1
 
@@ -236,13 +236,13 @@ def calculate_fade_c(uuid, w_glob, fade_target, model):
         if model == "lstm":
             # for lstm, acc_local means the mse loss instead of accuracy, the less the better
             if current_acc_local == -1:
-                fade_c = 1.5
+                fade_c = 10
             else:
                 fade_c = current_acc_local / acc_local
         else:
             # for cnn or mlp models, accuracy the higher the better.
             if current_acc_local == -1:
-                fade_c = 1.5
+                fade_c = 10
             else:
                 fade_c = acc_local / current_acc_local
     else:
