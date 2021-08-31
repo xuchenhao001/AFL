@@ -267,8 +267,7 @@ def intermediate_acc_record(w_glob):
     acc_local, acc_local_skew1, acc_local_skew2, acc_local_skew3, acc_local_skew4 = \
         utils.util.test_model(net_glob, dataset_test, args, test_users, skew_users, idx)
     utils.util.record_log(g_my_uuid, 0, [total_time, 0.0, 0.0, 0.0, 0.0],
-                          [acc_local, acc_local_skew1, acc_local_skew2, acc_local_skew3, acc_local_skew4],
-                          args.model, clean=True)
+                          [acc_local, acc_local_skew1, acc_local_skew2, acc_local_skew3, acc_local_skew4], args.model)
 
 
 # STEP #7
