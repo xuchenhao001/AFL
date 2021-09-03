@@ -10,7 +10,8 @@ import matplotlib.pyplot as plt
 import matplotlib.font_manager as font_manager
 
 
-def plot_time_acc(title, scale, xrange, fed_async, fed_avg, fed_sync, fed_localA, local_train):
+def plot_time_acc(title, scale, xrange, fed_async, fed_avg, fed_sync, fed_localA, local_train, save_path=None,
+                  is_acc=True):
     x = range(len(fed_async))
     x = [value * scale for value in x]
 
@@ -29,7 +30,10 @@ def plot_time_acc(title, scale, xrange, fed_async, fed_avg, fed_sync, fed_localA
     axes.plot(x, local_train, label="Local Training", linestyle='--', alpha=0.5)
 
     axes.set_xlabel("Running Time (seconds)", **cs_xy_label_font)
-    axes.set_ylabel("Average Test Accuracy (%)", **cs_xy_label_font)
+    if is_acc:
+        axes.set_ylabel("Average Test Accuracy (%)", **cs_xy_label_font)
+    else:
+        axes.set_ylabel("Mean Squared Error", **cs_xy_label_font)
 
     plt.title(title, **cs_title_font)
     plt.xticks(family='Times New Roman', fontsize=15)
@@ -38,10 +42,14 @@ def plot_time_acc(title, scale, xrange, fed_async, fed_avg, fed_sync, fed_localA
     plt.xlim(0, xrange)
     plt.legend(prop=legend_font, loc='lower right')
     plt.grid()
-    plt.show()
+    if save_path:
+        plt.savefig(save_path)
+    else:
+        plt.show()
 
 
-def plot_static_time_acc(title, scale, xrange, fed_async, fed_async_f05, fed_async_f10, fed_async_f15):
+def plot_static_time_acc(title, scale, xrange, fed_async, fed_async_f05, fed_async_f10, fed_async_f15, save_path=None,
+                         is_acc=True):
     x = range(len(fed_async))
     x = [value * scale for value in x]
 
@@ -59,7 +67,10 @@ def plot_static_time_acc(title, scale, xrange, fed_async, fed_async_f05, fed_asy
     axes.plot(x, fed_async_f15, label="f=1.5", linestyle='--', alpha=0.5)
 
     axes.set_xlabel("Running Time (seconds)", **cs_xy_label_font)
-    axes.set_ylabel("Average Test Accuracy (%)", **cs_xy_label_font)
+    if is_acc:
+        axes.set_ylabel("Average Test Accuracy (%)", **cs_xy_label_font)
+    else:
+        axes.set_ylabel("Mean Squared Error", **cs_xy_label_font)
 
     plt.title(title, **cs_title_font)
     plt.xticks(family='Times New Roman', fontsize=15)
@@ -68,4 +79,7 @@ def plot_static_time_acc(title, scale, xrange, fed_async, fed_async_f05, fed_asy
     plt.xlim(0, xrange)
     plt.legend(prop=legend_font, loc='lower right')
     plt.grid()
-    plt.show()
+    if save_path:
+        plt.savefig(save_path)
+    else:
+        plt.show()

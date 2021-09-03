@@ -11,3 +11,4 @@ output/
 *.log
 raft/hraftd
 networkCache.tar.gz
+figures/

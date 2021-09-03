@@ -4,7 +4,7 @@ from pathlib import Path
 
 
 def plot_all():
-    experiment_names = ["cnn-cifar", "cnn-mnist", "cnn-realworld", "cnn-uci", "mlp-mnist"]
+    experiment_names = ["cnn-cifar", "cnn-fmnist", "lstm-loop", "mlp-fmnist"]
 
     # real_path = os.path.dirname(os.path.realpath(__file__))
     Path("./figures").mkdir(parents=True, exist_ok=True)
