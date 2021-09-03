@@ -44,8 +44,8 @@ def calculate_files_mean(experiment_path):
 
 def extract_time_data():
     exp_node_number = "iot-1-network"
-    model_name = "cnn"
-    dataset_name = "cifar"
+    model_name = "mlp"
+    dataset_name = "fashion_mnist"
 
     experiment_names = ["fed_async", "fed_avg", "fed_localA", "fed_sync", "local_train"]
 
@@ -67,7 +67,7 @@ def extract_time_data():
                 ]
                 experiment_results[experiment_name] = result_time_array
 
-    time_array = ["round_time", "train_time", "test_time", "communication_time"]
+    time_array = ["overall_time", "train_time", "test_time", "communication_time"]
     for time_idx in range(len(time_array)):
         print(time_array[time_idx] + ": ")
         for experiment_name in experiment_names:
