@@ -9,6 +9,34 @@
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as font_manager
 
+# Font settings for plots start #
+
+# Three in a row #
+font_size_dict = {
+    "h": 19,
+    "m": 17,
+    "l": 15,
+}
+
+# Four in a row #
+# font_size_dict = {
+#     "h": 25,
+#     "m": 21,
+#     "l": 19,
+# }
+# Font settings for plots end #
+
+xy_label_font = font_manager.FontProperties(
+    family='Times New Roman', weight='bold', style='normal', size=font_size_dict["h"])
+title_font = font_manager.FontProperties(
+    family='Times New Roman', weight='bold', style='normal', size=font_size_dict["m"])
+legend_font = font_manager.FontProperties(
+    family='Times New Roman', weight='bold', style='normal', size=font_size_dict["l"])
+ticks_font = font_manager.FontProperties(family='Times New Roman', style='normal', size=font_size_dict["l"])
+cs_xy_label_font = {'fontproperties': xy_label_font}
+cs_title_font = {'fontproperties': title_font}
+cs_xy_ticks_font = {'fontproperties': ticks_font}
+
 
 def plot_time_acc(title, scale, xrange, fed_async, fed_avg, fed_sync, fed_localA, local_train, save_path=None,
                   is_acc=True):
@@ -16,12 +44,6 @@ def plot_time_acc(title, scale, xrange, fed_async, fed_avg, fed_sync, fed_localA
     x = [value * scale for value in x]
 
     fig, axes = plt.subplots()
-
-    legend_font = font_manager.FontProperties(family='Times New Roman', weight='bold', style='normal', size=17)
-    xy_label_font = font_manager.FontProperties(family='Times New Roman', weight='bold', style='normal', size=19)
-    title_font = font_manager.FontProperties(family='Times New Roman', weight='bold', style='normal', size=17)
-    cs_xy_label_font = {'fontproperties': xy_label_font}
-    cs_title_font = {'fontproperties': title_font}
 
     axes.plot(x, fed_async, label="BAFL", linewidth=3)
     axes.plot(x, fed_sync, label="BSFL", linestyle='--', alpha=0.5)
@@ -36,8 +58,8 @@ def plot_time_acc(title, scale, xrange, fed_async, fed_avg, fed_sync, fed_localA
         axes.set_ylabel("Mean Squared Error", **cs_xy_label_font)
 
     plt.title(title, **cs_title_font)
-    plt.xticks(family='Times New Roman', fontsize=15)
-    plt.yticks(family='Times New Roman', fontsize=15)
+    plt.xticks(**cs_xy_ticks_font)
+    plt.yticks(**cs_xy_ticks_font)
     plt.tight_layout()
     plt.xlim(0, xrange)
     plt.legend(prop=legend_font, loc='lower right')
@@ -55,12 +77,6 @@ def plot_static_time_acc(title, scale, xrange, fed_async, fed_async_f05, fed_asy
 
     fig, axes = plt.subplots()
 
-    legend_font = font_manager.FontProperties(family='Times New Roman', weight='bold', style='normal', size=17)
-    xy_label_font = font_manager.FontProperties(family='Times New Roman', weight='bold', style='normal', size=19)
-    title_font = font_manager.FontProperties(family='Times New Roman', weight='bold', style='normal', size=17)
-    cs_xy_label_font = {'fontproperties': xy_label_font}
-    cs_title_font = {'fontproperties': title_font}
-
     axes.plot(x, fed_async, label="BAFL", linewidth=3)
     axes.plot(x, fed_async_f05, label="f=0.5", linestyle='--', alpha=0.5)
     axes.plot(x, fed_async_f10, label="f=1.0", linestyle='--', alpha=0.5)
@@ -73,8 +89,8 @@ def plot_static_time_acc(title, scale, xrange, fed_async, fed_async_f05, fed_asy
         axes.set_ylabel("Mean Squared Error", **cs_xy_label_font)
 
     plt.title(title, **cs_title_font)
-    plt.xticks(family='Times New Roman', fontsize=15)
-    plt.yticks(family='Times New Roman', fontsize=15)
+    plt.xticks(**cs_xy_ticks_font)
+    plt.yticks(**cs_xy_ticks_font)
     plt.tight_layout()
     plt.xlim(0, xrange)
     plt.legend(prop=legend_font, loc='lower right')
@@ -90,12 +106,6 @@ def plot_time_cost(title, yrange, fed_async, fed_avg, fed_sync, fed_localA, loca
 
     fig, axes = plt.subplots()
 
-    legend_font = font_manager.FontProperties(family='Times New Roman', weight='bold', style='normal', size=17)
-    xy_label_font = font_manager.FontProperties(family='Times New Roman', weight='bold', style='normal', size=19)
-    title_font = font_manager.FontProperties(family='Times New Roman', weight='bold', style='normal', size=17)
-    cs_xy_label_font = {'fontproperties': xy_label_font}
-    cs_title_font = {'fontproperties': title_font}
-
     axes.plot(x, fed_async, label="BAFL", linewidth=3)
     axes.plot(x, fed_sync, label="BSFL", linestyle='--', alpha=0.5)
     axes.plot(x, fed_localA, label="APFL", linestyle='--', alpha=0.5)
@@ -106,8 +116,8 @@ def plot_time_cost(title, yrange, fed_async, fed_avg, fed_sync, fed_localA, loca
     axes.set_ylabel("Average Time (s)", **cs_xy_label_font)
 
     plt.title(title, **cs_title_font)
-    plt.xticks(family='Times New Roman', fontsize=15)
-    plt.yticks(family='Times New Roman', fontsize=15)
+    plt.xticks(**cs_xy_ticks_font)
+    plt.yticks(**cs_xy_ticks_font)
     plt.tight_layout()
     plt.ylim(0, yrange)
     plt.legend(prop=legend_font, loc='upper right')
