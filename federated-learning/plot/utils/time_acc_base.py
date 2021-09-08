@@ -12,18 +12,11 @@ import matplotlib.font_manager as font_manager
 # Font settings for plots start #
 
 # Three in a row #
-font_size_dict = {
-    "h": 19,
-    "m": 17,
-    "l": 15,
-}
+font_size_dict = {"h": 19, "m": 17, "l": 15}
 
-# Four in a row #
-# font_size_dict = {
-#     "h": 25,
-#     "m": 21,
-#     "l": 19,
-# }
+# Four in a row (bigger fonts) #
+# font_size_dict = {"h": 25, "m": 21, "l": 19}
+
 # Font settings for plots end #
 
 xy_label_font = font_manager.FontProperties(
