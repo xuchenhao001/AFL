@@ -49,5 +49,8 @@ def args_parser():
     parser.add_argument('--start_sleep', type=int, default=300, help="sleep for seconds before start train")
     # sleep for several seconds before exit python
     parser.add_argument('--exit_sleep', type=int, default=300, help="sleep for seconds before exit python")
+    # poisoning attacker ids, must be string type "1", "2", ...
+    parser.add_argument("--attackers", nargs="+", default=[])
+
     args = parser.parse_args()
     return args

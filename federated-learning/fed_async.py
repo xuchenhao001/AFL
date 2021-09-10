@@ -18,8 +18,6 @@ logging.getLogger('werkzeug').setLevel(logging.ERROR)
 logger = logging.getLogger("fed_async")
 
 # TO BE CHANGED
-# attackers' ids, must be string type "1", "2", ...
-attackers_id = []
 # federated learning server listen port
 fed_listen_port = 8888
 # TO BE CHANGED FINISHED
@@ -149,7 +147,8 @@ def train(uuid, epochs, start_time):
     train_start_time = time.time()
     w_local, _ = local_update(copy.deepcopy(net_glob).to(args.device), dataset_train, dict_users[idx], args)
     # fake attackers
-    if str(uuid) in attackers_id:
+    if str(uuid) in args.attackers:
+        logger.debug("Detected id in attackers' list: {}, manipulate local gradients!".format(args.attackers))
         w_local = utils.util.disturb_w(w_local)
     train_time = time.time() - train_start_time
 
@@ -244,13 +243,21 @@ def calculate_fade_c(uuid, w_local, fade_target, model):
             if current_acc_local == -1:
                 fade_c = 10
             else:
-                fade_c = current_acc_local / acc_local
+                try:
+                    fade_c = current_acc_local / acc_local
+                except ZeroDivisionError as err:
+                    logger.debug('Divided by zero: {}, set scaling factor to 10 by default.'.format(err))
+                    fade_c = 10
         else:
             # for cnn or mlp models, accuracy the higher the better.
             if current_acc_local == -1:
                 fade_c = 10
             else:
-                fade_c = acc_local / current_acc_local
+                try:
+                    fade_c = acc_local / current_acc_local
+                except ZeroDivisionError as err:
+                    logger.debug('Divided by zero: {}, set scaling factor to 10 by default.'.format(err))
+                    fade_c = 10
     else:
         logger.debug("fade={}, static fade setting is adopted!".format(fade_target))
         # static fade setting

@@ -306,7 +306,7 @@ def generate_md5_hash(model_weights):
 def disturb_w(w):
     disturbed_w = copy.deepcopy(w)
     for name, param in w.items():
-        beta = random.random()
+        beta = (random.random()-0.5)*2  # disturb value in range [-1, 1)
         transformed_w = param * beta
         disturbed_w[name] = transformed_w
     return disturbed_w
