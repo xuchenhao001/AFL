@@ -258,6 +258,9 @@ def calculate_fade_c(uuid, w_local, fade_target, model):
                 except ZeroDivisionError as err:
                     logger.debug('Divided by zero: {}, set scaling factor to 10 by default.'.format(err))
                     fade_c = 10
+        # filter out poisoning local updated gradients
+        if fade_c < 0.8:
+            fade_c = 0
     else:
         logger.debug("fade={}, static fade setting is adopted!".format(fade_target))
         # static fade setting

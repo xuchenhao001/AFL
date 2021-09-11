@@ -94,6 +94,36 @@ def plot_static_time_acc(title, scale, xrange, fed_async, fed_async_f05, fed_asy
         plt.show()
 
 
+def plot_attack_time_acc(title, acc_average, acc_node_list, save_path=None, is_acc=True):
+    x = range(1, len(acc_average)+1)
+
+    fig, axes = plt.subplots()
+
+    axes.plot(x, acc_average, label="Average", linewidth=3)
+    axes.plot(x, acc_node_list[0], label="Node 1", linestyle='--', alpha=0.5)
+    axes.plot(x, acc_node_list[1], label="Node 2", linestyle='--', alpha=0.5)
+    axes.plot(x, acc_node_list[2], label="Node 3", linestyle='--', alpha=0.5)
+    axes.plot(x, acc_node_list[3], label="Node 4", linestyle='--', alpha=0.5)
+    axes.plot(x, acc_node_list[4], label="Node 5", linestyle='--', alpha=0.5)
+
+    axes.set_xlabel("Round Number", **cs_xy_label_font)
+    if is_acc:
+        axes.set_ylabel("Test Accuracy (%)", **cs_xy_label_font)
+    else:
+        axes.set_ylabel("Mean Squared Error", **cs_xy_label_font)
+
+    plt.title(title, **cs_title_font)
+    plt.xticks(**cs_xy_ticks_font)
+    plt.yticks(**cs_xy_ticks_font)
+    plt.tight_layout()
+    # plt.xlim(0, xrange)
+    plt.legend(prop=legend_font, loc='lower right')
+    plt.grid()
+    if save_path:
+        plt.savefig(save_path)
+    else:
+        plt.show()
+
 def plot_time_cost(title, yrange, fed_async, fed_avg, fed_sync, fed_localA, local_train, save_path=None):
     x = range(1, len(fed_async)+1)
 
