@@ -124,6 +124,7 @@ def plot_attack_time_acc(title, acc_average, acc_node_list, save_path=None, is_a
     else:
         plt.show()
 
+
 def plot_time_cost(title, yrange, fed_async, fed_avg, fed_sync, fed_localA, local_train, save_path=None):
     x = range(1, len(fed_async)+1)
 
@@ -143,6 +144,35 @@ def plot_time_cost(title, yrange, fed_async, fed_avg, fed_sync, fed_localA, loca
     plt.yticks(**cs_xy_ticks_font)
     plt.tight_layout()
     plt.ylim(0, yrange)
+    plt.legend(prop=legend_font, loc='upper right')
+    plt.grid()
+    if save_path:
+        plt.savefig(save_path)
+    else:
+        plt.show()
+
+
+def plot_time_historgram(title, fed_async, fed_avg, fed_sync, fed_localA, local_train, save_path=None):
+    x = ["Train", "Test", "Communication", "Round"]
+
+    fig, axes = plt.subplots()
+
+    width = 0.15  # the width of the bars
+    axes.bar([(p - width * 2) for p in range(len(x))], height=fed_async, width=width, label="BAFL", hatch='x')
+    axes.bar([p - width for p in range(len(x))], height=fed_sync, width=width, label="BSFL", hatch='o')
+    axes.bar(range(len(x)), height=fed_localA, width=width, label="APFL", hatch='+')
+    axes.bar([p + width for p in range(len(x))], height=fed_avg, width=width, label="FedAVG", hatch='*')
+    axes.bar([(p + width * 2) for p in range(len(x))], height=local_train, width=width, label="Local Training",
+             hatch='/')
+
+    plt.xticks(range(len(x)), x)
+    axes.set_xlabel("The Type of Time Cost", **cs_xy_label_font)
+    axes.set_ylabel("Average Time Per Iteration (s)", **cs_xy_label_font)
+
+    plt.title(title, **cs_title_font)
+    plt.xticks(**cs_xy_ticks_font)
+    plt.yticks(**cs_xy_ticks_font)
+    plt.tight_layout()
     plt.legend(prop=legend_font, loc='upper right')
     plt.grid()
     if save_path:

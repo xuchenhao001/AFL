@@ -34,40 +34,28 @@ def calculate_files_mean(experiment_path):
     return files_numbers_mean_2d_np
 
 
-def extract_time_data():
-    exp_node_number = "iot-1-network"
-    model_name = "mlp"
-    dataset_name = "fashion_mnist"
+def extract_time_histogram_data():
+    exp_node_number = "iot-2-network"
+    model_name = "cnn"
+    dataset_name = "cifar"
 
     experiment_names = ["fed_async", "fed_avg", "fed_localA", "fed_sync", "local_train"]
 
-    experiment_results = {}
     for path, dirs, files in os.walk("./output"):
         if path.endswith(model_name + "-" + dataset_name) and exp_node_number in path:
             for experiment_name in experiment_names:
                 experiment_path = os.path.join(path, experiment_name)
                 files_numbers_mean_2d_np = calculate_files_mean(experiment_path)
-                round_time = [round(i, 2) for i in files_numbers_mean_2d_np[:, 1]]
-                train_time = [round(i, 2) for i in files_numbers_mean_2d_np[:, 2]]
-                test_time = [round(i, 2) for i in files_numbers_mean_2d_np[:, 3]]
-                communication_time = [round(i, 2) for i in files_numbers_mean_2d_np[:, 4]]
-                result_time_array = [
-                    round_time,
-                    train_time,
-                    test_time,
-                    communication_time,
-                ]
-                experiment_results[experiment_name] = result_time_array
-
-    time_array = ["overall_time", "train_time", "test_time", "communication_time"]
-    for time_idx in range(len(time_array)):
-        print(time_array[time_idx] + ": ")
-        for experiment_name in experiment_names:
-            print(experiment_name, "=", experiment_results[experiment_name][time_idx])
+                round_time_avg = round(files_numbers_mean_2d_np[:, 1].mean(), 2)
+                train_time_avg = round(files_numbers_mean_2d_np[:, 2].mean(), 2)
+                test_time_avg = round(files_numbers_mean_2d_np[:, 3].mean(), 2)
+                communication_time_avg = round(files_numbers_mean_2d_np[:, 4].mean(), 2)
+                result_time_array = [train_time_avg, test_time_avg, communication_time_avg, round_time_avg]
+                print(experiment_name, "=", result_time_array)
 
 
 def main():
-    extract_time_data()
+    extract_time_histogram_data()
 
 
 if __name__ == "__main__":
