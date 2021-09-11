@@ -23,6 +23,7 @@ def parse_results(file_path):
 
 def calculate_files_and_mean(experiment_path):
     result_files = [f for f in os.listdir(experiment_path) if f.startswith('result-record_')]
+    result_files.sort()
 
     files_numbers_3d = []
     for result_file in result_files:

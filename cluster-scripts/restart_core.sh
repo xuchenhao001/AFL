@@ -8,6 +8,7 @@ is_iid=$6
 dataset_train_size=$7
 fade=$8
 attackers=$9
+attack_detect_threshold=${10}
 
 
 FIRST_CHAR=$(echo ${test_name} | cut -c1-1)
@@ -32,6 +33,9 @@ if [[ ! -z "$fade" ]]; then
 fi
 if [[ ! -z "$attackers" ]]; then
   PYTHON_CMD="$PYTHON_CMD --attackers=$attackers"
+fi
+if [[ ! -z "$attack_detect_threshold" ]]; then
+  PYTHON_CMD="$PYTHON_CMD --attack_detect_threshold=$attack_detect_threshold"
 fi
 
 ssh ${user}@${addr} "kill -9 \$(ps -ef|grep '$PS_NAME'|awk '{print \$2}')"

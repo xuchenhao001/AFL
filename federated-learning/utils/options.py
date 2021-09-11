@@ -51,6 +51,8 @@ def args_parser():
     parser.add_argument('--exit_sleep', type=int, default=300, help="sleep for seconds before exit python")
     # poisoning attacker ids, must be string type "1", "2", ...
     parser.add_argument("--attackers", nargs="+", default=[])
+    # poisoning attacker accuracy detecting threshold
+    parser.add_argument("--attack_detect_threshold", type=float, default=0.8)
 
     args = parser.parse_args()
     return args

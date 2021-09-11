@@ -199,7 +199,7 @@ def aggregate(epochs, uuid, start_time, train_time, w_compressed):
     w_local = utils.util.decompress_tensor(w_compressed)
     # aggregate global model
     if g_train_global_model is not None:
-        fade_c = calculate_fade_c(uuid, w_local, args.fade, args.model)
+        fade_c = calculate_fade_c(uuid, w_local, args.fade, args.model, args.attack_detect_threshold)
         w_glob = FadeFedAvg(g_train_global_model, w_local, fade_c)
     # test new global model acc and record onto the log
     intermediate_acc_record(w_glob)
@@ -227,7 +227,7 @@ def aggregate(epochs, uuid, start_time, train_time, w_compressed):
     utils.util.http_client_post(blockchain_server_url, body_data)
 
 
-def calculate_fade_c(uuid, w_local, fade_target, model):
+def calculate_fade_c(uuid, w_local, fade_target, model, acc_detect_threshold):
     if fade_target == -1:  # -1 means fade dynamic setting
         logger.debug("fade=-1, dynamic fade setting is adopted!")
         # dynamic fade setting, test new acc_local first
@@ -258,8 +258,8 @@ def calculate_fade_c(uuid, w_local, fade_target, model):
                 except ZeroDivisionError as err:
                     logger.debug('Divided by zero: {}, set scaling factor to 10 by default.'.format(err))
                     fade_c = 10
-        # filter out poisoning local updated gradients
-        if fade_c < 0.8:
+        # filter out poisoning local updated gradients whose test accuracy is less than acc_detect_threshold
+        if fade_c < acc_detect_threshold:
             fade_c = 0
     else:
         logger.debug("fade={}, static fade setting is adopted!".format(fade_target))

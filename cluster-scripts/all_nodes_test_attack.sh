@@ -55,44 +55,84 @@ function main() {
         attackers=${ATTACKER}
         echo "[`date`] ALL_NODE_TEST UNDER: ${model} - ${dataset}"
 
-        # fed_async
-        if [[ ! -d "${model}-${dataset}/fed_async" ]]; then
-            echo "[`date`] ## fed_async start ##"
+        # BAFL with attack defense threshold 0.9
+        if [[ ! -d "${model}-${dataset}/fed_async_defense_09" ]]; then
+            echo "[`date`] ## fed_async_defense_09 start ##"
             # clean
             clean
             # run test
             for i in "${!PeerAddress[@]}"; do
               addrIN=(${PeerAddress[i]//:/ })
               dataset_train_size=${TrainDataSize[i]}
-              ./restart_core.sh ${HostUser} ${addrIN[0]} "fed_async" "$model" "$dataset" "$is_iid" "$dataset_train_size" "-1" "$attackers"
+              ./restart_core.sh ${HostUser} ${addrIN[0]} "fed_async" "$model" "$dataset" "$is_iid" "$dataset_train_size" "-1" "$attackers" "0.9"
             done
             sleep 300
             curl -i -X GET 'http://localhost:8888/messages'
             # detect test finish or not
             testFinish "[f]ed_async.py"
             # gather output, move to the right directory
-            arrangeOutput ${model} ${dataset} "fed_async"
-            echo "[`date`] ## fed_async done ##"
+            arrangeOutput ${model} ${dataset} "fed_async_defense_09"
+            echo "[`date`] ## fed_async_defense_09 done ##"
         fi
 
-	# classic AFL (fade=1.0)
-        if [[ ! -d "${model}-${dataset}/fed_async_f10" ]]; then
-            echo "[`date`] ## fed_async_f10 start ##"
+        # BAFL with attack defense threshold 0.8
+        if [[ ! -d "${model}-${dataset}/fed_async_defense_08" ]]; then
+            echo "[`date`] ## fed_async_defense_08 start ##"
             # clean
             clean
             # run test
             for i in "${!PeerAddress[@]}"; do
               addrIN=(${PeerAddress[i]//:/ })
               dataset_train_size=${TrainDataSize[i]}
-              ./restart_core.sh ${HostUser} ${addrIN[0]} "fed_async" "$model" "$dataset" "$is_iid" "$dataset_train_size" "1.0" "$attackers"
+              ./restart_core.sh ${HostUser} ${addrIN[0]} "fed_async" "$model" "$dataset" "$is_iid" "$dataset_train_size" "-1" "$attackers" "0.8"
             done
             sleep 300
             curl -i -X GET 'http://localhost:8888/messages'
             # detect test finish or not
             testFinish "[f]ed_async.py"
             # gather output, move to the right directory
-            arrangeOutput ${model} ${dataset} "fed_async_f10"
-            echo "[`date`] ## fed_async_f10 done ##"
+            arrangeOutput ${model} ${dataset} "fed_async_defense_08"
+            echo "[`date`] ## fed_async_defense_08 done ##"
+        fi
+
+        # BAFL without poisoning attack defense
+        if [[ ! -d "${model}-${dataset}/fed_async_defense_00" ]]; then
+            echo "[`date`] ## fed_async_defense_00 start ##"
+            # clean
+            clean
+            # run test
+            for i in "${!PeerAddress[@]}"; do
+              addrIN=(${PeerAddress[i]//:/ })
+              dataset_train_size=${TrainDataSize[i]}
+              ./restart_core.sh ${HostUser} ${addrIN[0]} "fed_async" "$model" "$dataset" "$is_iid" "$dataset_train_size" "-1" "$attackers" "0.0"
+            done
+            sleep 300
+            curl -i -X GET 'http://localhost:8888/messages'
+            # detect test finish or not
+            testFinish "[f]ed_async.py"
+            # gather output, move to the right directory
+            arrangeOutput ${model} ${dataset} "fed_async_defense_00"
+            echo "[`date`] ## fed_async_defense_00 done ##"
+        fi
+
+        # classic AFL (fade=1.0) without poisoning attack defense
+        if [[ ! -d "${model}-${dataset}/fed_async_classic" ]]; then
+            echo "[`date`] ## fed_async_classic start ##"
+            # clean
+            clean
+            # run test
+            for i in "${!PeerAddress[@]}"; do
+              addrIN=(${PeerAddress[i]//:/ })
+              dataset_train_size=${TrainDataSize[i]}
+              ./restart_core.sh ${HostUser} ${addrIN[0]} "fed_async" "$model" "$dataset" "$is_iid" "$dataset_train_size" "1.0" "$attackers" "0.0"
+            done
+            sleep 300
+            curl -i -X GET 'http://localhost:8888/messages'
+            # detect test finish or not
+            testFinish "[f]ed_async.py"
+            # gather output, move to the right directory
+            arrangeOutput ${model} ${dataset} "fed_async_classic"
+            echo "[`date`] ## fed_async_classic done ##"
         fi
     done
 }
