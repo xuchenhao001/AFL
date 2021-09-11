@@ -56,8 +56,8 @@ function main() {
         echo "[`date`] ALL_NODE_TEST UNDER: ${model} - ${dataset}"
 
         # BAFL with attack defense threshold 0.9
-        if [[ ! -d "${model}-${dataset}/fed_async_defense_09" ]]; then
-            echo "[`date`] ## fed_async_defense_09 start ##"
+        if [[ ! -d "${model}-${dataset}/fed_async_defense_90" ]]; then
+            echo "[`date`] ## fed_async_defense_90 start ##"
             # clean
             clean
             # run test
@@ -71,13 +71,13 @@ function main() {
             # detect test finish or not
             testFinish "[f]ed_async.py"
             # gather output, move to the right directory
-            arrangeOutput ${model} ${dataset} "fed_async_defense_09"
-            echo "[`date`] ## fed_async_defense_09 done ##"
+            arrangeOutput ${model} ${dataset} "fed_async_defense_90"
+            echo "[`date`] ## fed_async_defense_90 done ##"
         fi
 
         # BAFL with attack defense threshold 0.8
-        if [[ ! -d "${model}-${dataset}/fed_async_defense_08" ]]; then
-            echo "[`date`] ## fed_async_defense_08 start ##"
+        if [[ ! -d "${model}-${dataset}/fed_async_defense_80" ]]; then
+            echo "[`date`] ## fed_async_defense_80 start ##"
             # clean
             clean
             # run test
@@ -91,8 +91,8 @@ function main() {
             # detect test finish or not
             testFinish "[f]ed_async.py"
             # gather output, move to the right directory
-            arrangeOutput ${model} ${dataset} "fed_async_defense_08"
-            echo "[`date`] ## fed_async_defense_08 done ##"
+            arrangeOutput ${model} ${dataset} "fed_async_defense_80"
+            echo "[`date`] ## fed_async_defense_80 done ##"
         fi
 
         # BAFL without poisoning attack defense

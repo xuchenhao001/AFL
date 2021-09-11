@@ -40,7 +40,7 @@ def extract_time_data():
     model_name = "cnn"
     dataset_name = "cifar"
 
-    experiment_names = ["fed_async", "fed_async_f10"]
+    experiment_names = ["fed_async_classic", "fed_async_defense_00", "fed_async_defense_80", "fed_async_defense_90"]
 
     for path, dirs, files in os.walk("./output"):
         if path.endswith(model_name + "-" + dataset_name) and exp_node_number in path:
