@@ -1,5 +1,6 @@
 import logging
 import os
+import random
 import sys
 import time
 import copy
@@ -147,8 +148,9 @@ def train(uuid, epochs, start_time):
     train_start_time = time.time()
     w_local, _ = local_update(copy.deepcopy(net_glob).to(args.device), dataset_train, dict_users[idx], args)
     # fake attackers
-    if str(uuid) in args.attackers:
-        logger.debug("Detected id in attackers' list: {}, manipulate local gradients!".format(args.attackers))
+    if str(uuid) in args.poisoning_attackers:
+        logger.debug("Detected id in poisoning attackers' list: {}, manipulate local gradients!"
+                     .format(args.poisoning_attackers))
         w_local = utils.util.disturb_w(w_local)
     train_time = time.time() - train_start_time
 
@@ -189,17 +191,29 @@ def aggregate(epochs, uuid, start_time, train_time, w_compressed):
     global g_train_global_model_compressed
     global g_train_global_model_version
     global global_model_hash
+
+    logger.debug("Received a train_ready.")
     lock.acquire()
-    logger.debug("Received a train_ready, do aggregate now.")
     key = str(uuid) + "-" + str(epochs)
     g_start_time[key] = start_time
     g_train_time[key] = train_time
     lock.release()
+    # mimic DDoS attacks here
+    if args.ddos_duration == 0 or args.ddos_duration > g_train_global_model_version:
+        logger.debug("Mimic the aggregator under DDoS attacks!")
+        if random.random() < args.ddos_no_response_percent:
+            logger.debug("Unfortunately, the aggregator does not response to the local update gradients")
+            lock.acquire()
+            # ignore the update to the global model
+            g_train_global_model_version += 1
+            lock.release()
+            return
+
     logger.debug("Aggregate global model after received a new local model.")
     w_local = utils.util.decompress_tensor(w_compressed)
     # aggregate global model
     if g_train_global_model is not None:
-        fade_c = calculate_fade_c(uuid, w_local, args.fade, args.model, args.attack_detect_threshold)
+        fade_c = calculate_fade_c(uuid, w_local, args.fade, args.model, args.poisoning_detect_threshold)
         w_glob = FadeFedAvg(g_train_global_model, w_local, fade_c)
     # test new global model acc and record onto the log
     intermediate_acc_record(w_glob)

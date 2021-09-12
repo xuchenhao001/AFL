@@ -52,7 +52,7 @@ function main() {
         model=${schema[0]}
         dataset=${schema[1]}
         is_iid=${IS_IID}
-        attackers=${ATTACKER}
+        attackers=${POISONING_ATTACKER}
         echo "[`date`] ALL_NODE_TEST UNDER: ${model} - ${dataset}"
 
         # BAFL with attack defense threshold 0.9

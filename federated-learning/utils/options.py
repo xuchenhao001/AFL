@@ -49,10 +49,14 @@ def args_parser():
     parser.add_argument('--start_sleep', type=int, default=300, help="sleep for seconds before start train")
     # sleep for several seconds before exit python
     parser.add_argument('--exit_sleep', type=int, default=300, help="sleep for seconds before exit python")
-    # poisoning attacker ids, must be string type "1", "2", ...
-    parser.add_argument("--attackers", nargs="+", default=[])
+    # poisoning attacker ids, must be string type "1", "2", ... . "-1" means no poisoning attack
+    parser.add_argument("--poisoning_attackers", nargs="+", default=[])
     # poisoning attacker accuracy detecting threshold
-    parser.add_argument("--attack_detect_threshold", type=float, default=0.8)
+    parser.add_argument("--poisoning_detect_threshold", type=float, default=0.8)
+    # ddos attack duration (epochs), -1 means no ddos, 0 means unlimited
+    parser.add_argument("--ddos_duration", type=int, default=-1)
+    # under ddos attack, no response request percent
+    parser.add_argument("--ddos_no_response_percent", type=float, default=0.9)
 
     args = parser.parse_args()
     return args

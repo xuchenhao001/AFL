@@ -7,8 +7,10 @@ dataset=$5
 is_iid=$6
 dataset_train_size=$7
 fade=$8
-attackers=$9
-attack_detect_threshold=${10}
+poisoning_attackers=$9
+poisoning_detect_threshold=${10}
+ddos_duration=${11}
+ddos_no_response_percent=${12}
 
 
 FIRST_CHAR=$(echo ${test_name} | cut -c1-1)
@@ -31,11 +33,17 @@ fi
 if [[ ! -z "$fade" ]]; then
   PYTHON_CMD="$PYTHON_CMD --fade=$fade"
 fi
-if [[ ! -z "$attackers" ]]; then
-  PYTHON_CMD="$PYTHON_CMD --attackers=$attackers"
+if [[ ! -z "$poisoning_attackers" ]]; then
+  PYTHON_CMD="$PYTHON_CMD --poisoning_attackers=$poisoning_attackers"
 fi
-if [[ ! -z "$attack_detect_threshold" ]]; then
-  PYTHON_CMD="$PYTHON_CMD --attack_detect_threshold=$attack_detect_threshold"
+if [[ ! -z "$poisoning_detect_threshold" ]]; then
+  PYTHON_CMD="$PYTHON_CMD --poisoning_detect_threshold=$poisoning_detect_threshold"
+fi
+if [[ ! -z "$ddos_duration" ]]; then
+  PYTHON_CMD="$PYTHON_CMD --ddos_duration=$ddos_duration"
+fi
+if [[ ! -z "$ddos_no_response_percent" ]]; then
+  PYTHON_CMD="$PYTHON_CMD --ddos_no_response_percent=$ddos_no_response_percent"
 fi
 
 ssh ${user}@${addr} "kill -9 \$(ps -ef|grep '$PS_NAME'|awk '{print \$2}')"
