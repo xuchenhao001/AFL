@@ -63,6 +63,35 @@ def plot_time_acc(title, scale, xrange, fed_async, fed_avg, fed_sync, fed_localA
         plt.show()
 
 
+def plot_ddos_acc(title, scale, xrange, ddos_00, ddos_80, ddos_90, save_path=None, is_acc=True):
+    x = range(len(ddos_00))
+    x = [value * scale for value in x]
+
+    fig, axes = plt.subplots()
+
+    axes.plot(x, ddos_00, label="Normal")
+    axes.plot(x, ddos_80, label="DDoS 80%")
+    axes.plot(x, ddos_90, label="DDoS 90%")
+
+    axes.set_xlabel("Running Time (seconds)", **cs_xy_label_font)
+    if is_acc:
+        axes.set_ylabel("Average Test Accuracy (%)", **cs_xy_label_font)
+    else:
+        axes.set_ylabel("Mean Squared Error", **cs_xy_label_font)
+
+    plt.title(title, **cs_title_font)
+    plt.xticks(**cs_xy_ticks_font)
+    plt.yticks(**cs_xy_ticks_font)
+    plt.tight_layout()
+    plt.xlim(0, xrange)
+    plt.legend(prop=legend_font, loc='lower right')
+    plt.grid()
+    if save_path:
+        plt.savefig(save_path)
+    else:
+        plt.show()
+
+
 def plot_static_time_acc(title, scale, xrange, fed_async, fed_async_f05, fed_async_f10, fed_async_f15, save_path=None,
                          is_acc=True):
     x = range(len(fed_async))
