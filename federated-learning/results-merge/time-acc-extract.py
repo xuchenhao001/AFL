@@ -57,13 +57,13 @@ def extract_by_timeline(result_value_dfs, sampling_frequency, final_time):
 
 
 def main():
-    sampling_frequency = 3  # sampling frequency (seconds)
-    final_time = 300
+    sampling_frequency = 5  # sampling frequency (seconds)
+    final_time = 500
     # exp_node_number = "dis-4-network"
-    exp_node_number = "iot-2-network"
+    exp_node_number = "iot-4-network"
     # exp_node_number = "static-fade"
-    model_name = "mlp"
-    dataset_name = "fashion_mnist"
+    model_name = "lstm"
+    dataset_name = "loop"
     experiments = ["fed_async", "fed_avg", "fed_sync", "fed_localA", "local_train"]
     # experiments = ["fed_async", "fed_async_f05", "fed_async_f10", "fed_async_f15"]
     for experiment in experiments:
