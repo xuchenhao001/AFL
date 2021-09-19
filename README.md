@@ -1,6 +1,6 @@
-# Asynchronous Federated Learning
+# Blockchain-Based Asynchronous Federated Learning
 
-Asynchronous Federated Learning code. Based on Hyperledger Fabric v2.3.
+Blockchain-Based Asynchronous Federated Learning (BAFL) code. Based on Hyperledger Fabric v2.3.
 
 ## Install
 
@@ -8,7 +8,7 @@ How to install this project on your operating system.
 
 ### Prerequisite
 
-* Ubuntu 20.04 
+* Ubuntu 20.04
 
 * Python 3.8.5 (pip 20.0.2)
 
@@ -94,7 +94,7 @@ PeerAddress=(
 )
 ```
 
-Notice that all of the ports on the same node should be different and at a sequence like `7051`, `8051`, `9051` ... `30051`. (must be ended with `*051`)
+> Notice that only one node is allowed to be allocated on the one node.
 
 Another example is you have three nodes running the the different hosts (`10.0.2.15` and `10.0.2.16`) and the user name for all the hosts is `ubuntu`, then your configuration could be like this:
 
@@ -112,10 +112,10 @@ After modified the configuration file, now start your blockchain network:
 
 ```bash
 cd fabric-network/
-./network.sh up createChannel && ./network.sh deployCC
+./network.sh up
 ```
 
->  After finished experiment, stop your blockchain network with `./network.sh down`
+>  When finished experiment, stop your blockchain network with `./network.sh down`
 
 ### Blockchain rest server
 
@@ -127,7 +127,16 @@ cd blockchain-server/
 nohup npm start > server.log 2>&1 &
 ```
 
+or:
+
+```bash
+cd blockchain-server/cluster-scripts/
+./restart_blockchain_server.sh
+```
+
 ### Federated Learning
+
+The parameters for the training are at `./AFL/federated-learning/utils/options.py`
 
 ```bash
 cd federated-learning/
@@ -137,7 +146,7 @@ python3 fed_server.py
 nohup python3 -u fed_server.py > fed_server.log 2>&1 &
 ```
 
-Trigger training start:
+Trigger training to start:
 
 ```bash
 curl -i -X GET 'http://localhost:8888/messages'
@@ -151,7 +160,59 @@ The comparative experiments include (under `AFL/federated-learning/` directory):
 fed_async.py  # our proposed asynchronous federated learning schema (need blockchain)
 fed_sync.py  # synchronous federated learning schema (need blockchain)
 fed_avg.py  # synchronous federated learning (FedAvg) algorithm (no need blockchain)
-fed_localA.py  # Adaptive personalized federated learning (APFL) (no need blockchain)
+fed_localA.py  # adaptive personalized federated learning (APFL) (no need blockchain)
 local_train.py  # local deep learning algorithm (Local Training) (no need blockchain)
+```
+
+Before running tests automatically, adjust parameters at `cluster-scripts/test.config`:
+
+```bash
+#!/bin/bash
+
+# all schemes to test
+TestSchema=(
+        "cnn-fashion_mnist"
+        "cnn-cifar"
+        "mlp-fashion_mnist"
+        "lstm-loop"
+)
+
+# test iid or non-iid datasets
+IS_IID=true
+
+# the default scaling factor setting, -1 means dynamic scaling factor
+FADE=-1
+
+# the ID of the poisoning attacker
+ATTACKER=5
+
+# the training dataset size on each node
+TrainDataSize=(
+        "1500"
+        "1500"
+        "1500"
+        "1500"
+        "1500"
+)
+```
+
+To run all tests automatically, go to `cluster-scripts/`, and run:
+
+```bash
+./all_nodes_test_bg.sh  # test BAFL, BSFL, FedAVG, APFL, and Local Training
+./all_nodes_test_async_bg.sh  # test BAFL
+./all_nodes_test_ddos_attack_bg.sh  # test BAFL and AFL under DDoS attacks
+./all_nodes_test_poisoning_attack_bg.sh  # test BAFL and AFL under poisoning attacks
+./all_nodes_test_static_bg.sh  # test BAFL under dynamic or static settings
+```
+
+There are additional scripts that ease cluster operations under `cluster-scripts/`:
+
+```bash
+./all_nodes_update.sh  # updates codes on all nodes, following the IPs at `fabric-network/network.config`
+./clean-output.sh  # clean logs on all nodes
+./gather-output.sh  # gather logs on all nodes
+./replace_network_config.sh  # replace `fabric-network/network.config` on all nodes by that on this node
+./restart_blockchain_server.sh  # restart the blockchain server on this node
 ```
 
