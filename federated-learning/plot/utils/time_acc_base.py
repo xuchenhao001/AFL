@@ -52,7 +52,7 @@ def plot_time_acc(title, scale, xrange, fed_async, fed_avg, fed_sync, fed_localA
 
     fig, axes = plt.subplots()
 
-    axes.plot(x, fed_async, label="BAFL", linewidth=3)
+    axes.plot(x, fed_async, label="DBAFL", linewidth=3)
     axes.plot(x, fed_sync, label="BSFL", linestyle='--', alpha=0.5)
     axes.plot(x, fed_localA, label="APFL", linestyle='--', alpha=0.5)
     axes.plot(x, fed_avg, label="FedAVG", linestyle='--', alpha=0.5)
@@ -115,7 +115,7 @@ def plot_time_cost(title, yrange, fed_async, fed_avg, fed_sync, fed_localA, loca
 
     fig, axes = plt.subplots()
 
-    axes.plot(x, fed_async, label="BAFL", linewidth=3)
+    axes.plot(x, fed_async, label="DBAFL", linewidth=3)
     axes.plot(x, fed_sync, label="BSFL", linestyle='--', alpha=0.5)
     axes.plot(x, fed_localA, label="APFL", linestyle='--', alpha=0.5)
     axes.plot(x, fed_avg, label="FedAVG", linestyle='--', alpha=0.5)
@@ -144,7 +144,7 @@ def plot_time_historgram(title, fed_async, fed_avg, fed_sync, fed_localA, local_
     fig, axes = plt.subplots()
 
     width = 0.15  # the width of the bars
-    axes.bar([(p - width * 2) for p in range(len(x))], height=fed_async, width=width, label="BAFL", hatch='x')
+    axes.bar([(p - width * 2) for p in range(len(x))], height=fed_async, width=width, label="DBAFL", hatch='x')
     axes.bar([p - width for p in range(len(x))], height=fed_sync, width=width, label="BSFL", hatch='o')
     axes.bar(range(len(x)), height=fed_localA, width=width, label="APFL", hatch='+')
     axes.bar([p + width for p in range(len(x))], height=fed_avg, width=width, label="FedAVG", hatch='*')
