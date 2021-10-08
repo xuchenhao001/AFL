@@ -52,11 +52,11 @@ def plot_time_acc(title, scale, xrange, fed_async, fed_avg, fed_sync, fed_localA
 
     fig, axes = plt.subplots()
 
-    axes.plot(x, fed_async, label="DBAFL", linewidth=3)
-    axes.plot(x, fed_sync, label="BSFL", linestyle='--', alpha=0.5)
-    axes.plot(x, fed_localA, label="APFL", linestyle='--', alpha=0.5)
-    axes.plot(x, fed_avg, label="FedAVG", linestyle='--', alpha=0.5)
-    axes.plot(x, local_train, label="Local", linestyle='--', alpha=0.5)
+    axes.plot(x, fed_async, label="DBAFL", linewidth=3, zorder=10)
+    axes.plot(x, fed_sync, label="BSFL")
+    axes.plot(x, fed_localA, label="APFL")
+    axes.plot(x, fed_avg, label="FedAVG")
+    axes.plot(x, local_train, label="Local")
 
     axes.set_xlabel("Running Time (seconds)", **font_settings.get("cs_xy_label_font"))
     if is_acc:
@@ -69,7 +69,7 @@ def plot_time_acc(title, scale, xrange, fed_async, fed_avg, fed_sync, fed_localA
     plt.yticks(**font_settings.get("cs_xy_ticks_font"))
     plt.tight_layout()
     plt.xlim(0, xrange)
-    plt.legend(prop=font_settings.get("legend_font"), loc='lower right')
+    plt.legend(prop=font_settings.get("legend_font"), loc='lower right').set_zorder(11)
     plt.grid()
     if save_path:
         plt.savefig(save_path)
@@ -85,10 +85,10 @@ def plot_static_time_acc(title, scale, xrange, fed_async, fed_async_f05, fed_asy
 
     fig, axes = plt.subplots()
 
-    axes.plot(x, fed_async, label="Dynamic", linewidth=3)
-    axes.plot(x, fed_async_f05, label=r'$\mathbf{\epsilon}$ = 0.5', linestyle='--', alpha=0.5)
-    axes.plot(x, fed_async_f10, label=r'$\epsilon$ = 1.0', linestyle='--', alpha=0.5)
-    axes.plot(x, fed_async_f15, label=r'$\epsilon$ = 1.5', linestyle='--', alpha=0.5)
+    axes.plot(x, fed_async, label="Dynamic", linewidth=3, zorder=10)
+    axes.plot(x, fed_async_f05, label=r'$\epsilon$ = 0.5')
+    axes.plot(x, fed_async_f10, label=r'$\epsilon$ = 1.0')
+    axes.plot(x, fed_async_f15, label=r'$\epsilon$ = 1.5')
 
     axes.set_xlabel("Running Time (seconds)", **font_settings.get("cs_xy_label_font"))
     if is_acc:
@@ -101,7 +101,7 @@ def plot_static_time_acc(title, scale, xrange, fed_async, fed_async_f05, fed_asy
     plt.yticks(**font_settings.get("cs_xy_ticks_font"))
     plt.tight_layout()
     plt.xlim(0, xrange)
-    plt.legend(prop=font_settings.get("legend_font"), loc='lower right')
+    plt.legend(prop=font_settings.get("legend_font"), loc='lower right').set_zorder(11)
     plt.grid()
     if save_path:
         plt.savefig(save_path)
@@ -115,11 +115,11 @@ def plot_time_cost(title, yrange, fed_async, fed_avg, fed_sync, fed_localA, loca
 
     fig, axes = plt.subplots()
 
-    axes.plot(x, fed_async, label="DBAFL", linewidth=3)
-    axes.plot(x, fed_sync, label="BSFL", linestyle='--', alpha=0.5)
-    axes.plot(x, fed_localA, label="APFL", linestyle='--', alpha=0.5)
-    axes.plot(x, fed_avg, label="FedAVG", linestyle='--', alpha=0.5)
-    axes.plot(x, local_train, label="Local", linestyle='--', alpha=0.5)
+    axes.plot(x, fed_async, label="DBAFL", linewidth=3, zorder=10)
+    axes.plot(x, fed_sync, label="BSFL")
+    axes.plot(x, fed_localA, label="APFL")
+    axes.plot(x, fed_avg, label="FedAVG")
+    axes.plot(x, local_train, label="Local")
 
     axes.set_xlabel("Training Round", **font_settings.get("cs_xy_label_font"))
     axes.set_ylabel("Average Time (s)", **font_settings.get("cs_xy_label_font"))
@@ -129,7 +129,7 @@ def plot_time_cost(title, yrange, fed_async, fed_avg, fed_sync, fed_localA, loca
     plt.yticks(**font_settings.get("cs_xy_ticks_font"))
     plt.tight_layout()
     plt.ylim(0, yrange)
-    plt.legend(prop=font_settings.get("legend_font"), loc='upper right')
+    plt.legend(prop=font_settings.get("legend_font"), loc='upper right').set_zorder(11)
     plt.grid()
     if save_path:
         plt.savefig(save_path)
@@ -159,7 +159,7 @@ def plot_time_historgram(title, fed_async, fed_avg, fed_sync, fed_localA, local_
     plt.xticks(**font_settings.get("cs_xy_ticks_font"))
     plt.yticks(**font_settings.get("cs_xy_ticks_font"))
     plt.tight_layout()
-    plt.legend(prop=font_settings.get("legend_font"), loc='upper left')
+    plt.legend(prop=font_settings.get("legend_font"), loc='upper left').set_zorder(11)
     plt.grid()
     if save_path:
         plt.savefig(save_path)
@@ -174,7 +174,7 @@ def plot_poisoning_time_acc(title, scale, xrange, acc_average, acc_node_list, sa
 
     fig, axes = plt.subplots()
 
-    axes.plot(x, acc_average, label="Average", linewidth=3)
+    axes.plot(x, acc_average, label="Average", linewidth=3, zorder=10)
     axes.plot(x, acc_node_list[0], label="Node 1", linestyle='--', alpha=0.5)
     axes.plot(x, acc_node_list[1], label="Node 2", linestyle='--', alpha=0.5)
     axes.plot(x, acc_node_list[2], label="Node 3", linestyle='--', alpha=0.5)
@@ -192,7 +192,7 @@ def plot_poisoning_time_acc(title, scale, xrange, acc_average, acc_node_list, sa
     plt.yticks(**font_settings.get("cs_xy_ticks_font"))
     plt.tight_layout()
     plt.xlim(0, xrange)
-    plt.legend(prop=font_settings.get("legend_font"), loc='lower right')
+    plt.legend(prop=font_settings.get("legend_font"), loc='lower right').set_zorder(11)
     plt.grid()
     if save_path:
         plt.savefig(save_path)
@@ -222,7 +222,7 @@ def plot_ddos_acc(title, scale, xrange, ddos_00, ddos_80, ddos_90, save_path=Non
     plt.yticks(**font_settings.get("cs_xy_ticks_font"))
     plt.tight_layout()
     plt.xlim(0, xrange)
-    plt.legend(prop=font_settings.get("legend_font"), loc='lower right')
+    plt.legend(prop=font_settings.get("legend_font"), loc='lower right').set_zorder(11)
     plt.grid()
     if save_path:
         plt.savefig(save_path)
