@@ -9,6 +9,7 @@ function killOldProcesses() {
     # kill all old processes
     ./stop_fed_async.sh
     ./stop_fed_sync.sh
+    ./stop_fed_avg.sh
     ./stop_fed_localA.sh
     ./stop_local_train.sh
 }
@@ -32,6 +33,7 @@ function arrangeOutput(){
     mv output/ "${model}-${dataset}/${expname}"
 }
 
+
 function testFinish() {
     fileName=$1
     while : ; do
@@ -44,6 +46,7 @@ function testFinish() {
     done
 }
 
+
 function main() {
     for i in "${!TestSchema[@]}"; do
         schema=(${TestSchema[i]//-/ })
@@ -53,24 +56,44 @@ function main() {
         fade=${FADE}
         echo "[`date`] ALL_NODE_TEST UNDER: ${model} - ${dataset}"
 
-        # fed_async
-        if [[ ! -d "${model}-${dataset}/fed_async" ]]; then
-            echo "[`date`] ## fed_async start ##"
+        # fed_befl
+        if [[ ! -d "${model}-${dataset}/fed_befl" ]]; then
+            echo "[`date`] ## fed_befl start ##"
             # clean
             clean
             # run test
             for i in "${!PeerAddress[@]}"; do
               addrIN=(${PeerAddress[i]//:/ })
               dataset_train_size=${TrainDataSize[i]}
-              ./restart_core.sh ${HostUser} ${addrIN[0]} "fed_async" "$model" "$dataset" "$is_iid" "$dataset_train_size"
+              ./restart_core.sh ${HostUser} ${addrIN[0]} "fed_befl" "$model" "$dataset" "$is_iid" "$dataset_train_size"
             done
             sleep 300
             curl -i -X GET 'http://localhost:8888/messages'
             # detect test finish or not
-            testFinish "[f]ed_async.py"
+            testFinish "[f]ed_befl.py"
             # gather output, move to the right directory
-            arrangeOutput ${model} ${dataset} "fed_async"
-            echo "[`date`] ## fed_async done ##"
+            arrangeOutput ${model} ${dataset} "fed_befl"
+            echo "[`date`] ## fed_befl.py done ##"
+        fi
+
+        # fed_asofed
+        if [[ ! -d "${model}-${dataset}/fed_asofed" ]]; then
+            echo "[`date`] ## fed_asofed start ##"
+            # clean
+            clean
+            # run test
+            for i in "${!PeerAddress[@]}"; do
+              addrIN=(${PeerAddress[i]//:/ })
+              dataset_train_size=${TrainDataSize[i]}
+              ./restart_core.sh ${HostUser} ${addrIN[0]} "fed_asofed" "$model" "$dataset" "$is_iid" "$dataset_train_size"
+            done
+            sleep 300
+            curl -i -X GET 'http://localhost:8888/messages'
+            # detect test finish or not
+            testFinish "[f]ed_asofed.py"
+            # gather output, move to the right directory
+            arrangeOutput ${model} ${dataset} "fed_asofed"
+            echo "[`date`] ## fed_asofed done ##"
         fi
 
     done

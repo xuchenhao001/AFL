@@ -87,6 +87,22 @@ func (s *SmartContract) UploadLocalModel(ctx contractapi.TransactionContextInter
 	return nil
 }
 
+// AcceptModel Accept BEFL models, useless for other schemes
+func (s *SmartContract) AcceptModel(ctx contractapi.TransactionContextInterface, receiveMsg string) error {
+	fmt.Println("[ACCEPT MODEL MSG] Received")
+	receiveMsgBytes := []byte(receiveMsg)
+	recMsg := new(HttpMessage)
+	_ = json.Unmarshal(receiveMsgBytes, recMsg)
+
+	// store models to the ledger
+	err := saveAsMap(ctx, "modelMap", recMsg.Epochs, recMsg.Uuid, recMsg.Data)
+	if err != nil {
+		return fmt.Errorf("failed to save model to state. %s", err.Error())
+	}
+
+	return nil
+}
+
 // UploadGlobalModel STEP #3
 func (s *SmartContract) UploadGlobalModel(ctx contractapi.TransactionContextInterface, receiveMsg string) error {
 	fmt.Println("[UPLOAD GLOBAL MODEL MSG] Received")

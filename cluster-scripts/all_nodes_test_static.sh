@@ -136,5 +136,4 @@ function main() {
     done
 }
 
-main
-
+main > full_test.log 2>&1 &
