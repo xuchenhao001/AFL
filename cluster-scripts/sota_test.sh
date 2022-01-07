@@ -12,6 +12,8 @@ function killOldProcesses() {
     ./stop_fed_avg.sh
     ./stop_fed_localA.sh
     ./stop_local_train.sh
+    ./stop_fed_befl.sh
+    ./stop_fed_asofed.sh
 }
 
 function cleanOutput() {
