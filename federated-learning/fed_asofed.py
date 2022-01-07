@@ -285,28 +285,13 @@ def round_finish(uuid, epochs):
         train(uuid, new_epochs, time.time())
     else:
         logger.info("########## ALL DONE! ##########")
+        from_ip = utils.util.get_ip(args.test_ip_addr)
         body_data = {
-            'message': 'shutdown_python'
+            'message': 'shutdown_python',
+            'uuid': uuid,
+            'from_ip': from_ip,
         }
         utils.util.http_client_post(trigger_url, body_data)
-
-
-def shutdown_count():
-    global shutdown_count_num
-    lock.acquire()
-    shutdown_count_num += 1
-    lock.release()
-    if shutdown_count_num == args.num_users:
-        # send request to blockchain for shutting down the python
-        body_data = {
-            'message': 'ShutdownPython',
-            'data': {},
-            'uuid': "",
-            'epochs': 0,
-            'is_sync': False
-        }
-        logger.debug('Sent shutdown python request to blockchain.')
-        utils.util.http_client_post(blockchain_server_url, body_data)
 
 
 def fetch_time(uuid, epochs):
@@ -369,7 +354,10 @@ def my_route(app):
             elif message == "fetch_time":
                 detail = fetch_time(data.get("uuid"), data.get("epochs"))
             elif message == "shutdown_python":
-                threading.Thread(target=shutdown_count, args=()).start()
+                threading.Thread(target=utils.util.shutdown_count, args=(
+                    data.get("uuid"), data.get("from_ip"), fed_listen_port, args.num_users)).start()
+            elif message == "shutdown":
+                threading.Thread(target=utils.util.my_exit, args=(args.exit_sleep, )).start()
             response = {"status": status, "detail": detail}
             return response
 

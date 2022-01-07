@@ -264,48 +264,6 @@ def aggregate(epochs, uuid, start_time, train_time, w_compressed):
     utils.util.http_client_post(blockchain_server_url, body_data)
 
 
-def calculate_fade_c(uuid, w_local, fade_target, model, acc_detect_threshold):
-    if fade_target == -1:  # -1 means fade dynamic setting
-        logger.debug("fade=-1, dynamic fade setting is adopted!")
-        # dynamic fade setting, test new acc_local first
-        net_glob.load_state_dict(w_local)
-        net_glob.eval()
-        idx = int(uuid) - 1
-
-        acc_local, acc_local_skew1, acc_local_skew2, acc_local_skew3, acc_local_skew4 = \
-            utils.util.test_model(net_glob, dataset_test, args, test_users, skew_users, idx)
-        logger.debug("after test, acc_local: {}, current_acc_local: {}".format(acc_local, current_acc_local))
-        if model == "lstm":
-            # for lstm, acc_local means the mse loss instead of accuracy, the less the better
-            if current_acc_local == -1:
-                fade_c = 10
-            else:
-                try:
-                    fade_c = current_acc_local / acc_local
-                except ZeroDivisionError as err:
-                    logger.debug('Divided by zero: {}, set scaling factor to 10 by default.'.format(err))
-                    fade_c = 10
-        else:
-            # for cnn or mlp models, accuracy the higher the better.
-            if current_acc_local == -1:
-                fade_c = 10
-            else:
-                try:
-                    fade_c = acc_local / current_acc_local
-                except ZeroDivisionError as err:
-                    logger.debug('Divided by zero: {}, set scaling factor to 10 by default.'.format(err))
-                    fade_c = 10
-        # filter out poisoning local updated gradients whose test accuracy is less than acc_detect_threshold
-        if fade_c < acc_detect_threshold:
-            fade_c = 0
-    else:
-        logger.debug("fade={}, static fade setting is adopted!".format(fade_target))
-        # static fade setting
-        fade_c = fade_target
-    logger.debug("calculated fade_c: %f" % fade_c)
-    return fade_c
-
-
 def intermediate_acc_record(w_glob):
     net_glob.load_state_dict(w_glob)
     net_glob.eval()
@@ -372,28 +330,13 @@ def round_finish(uuid, epochs):
         train(uuid, new_epochs, time.time())
     else:
         logger.info("########## ALL DONE! ##########")
+        from_ip = utils.util.get_ip(args.test_ip_addr)
         body_data = {
-            'message': 'shutdown_python'
+            'message': 'shutdown_python',
+            'uuid': uuid,
+            'from_ip': from_ip,
         }
         utils.util.http_client_post(trigger_url, body_data)
-
-
-def shutdown_count():
-    global shutdown_count_num
-    lock.acquire()
-    shutdown_count_num += 1
-    lock.release()
-    if shutdown_count_num == args.num_users:
-        # send request to blockchain for shutting down the python
-        body_data = {
-            'message': 'ShutdownPython',
-            'data': {},
-            'uuid': "",
-            'epochs': 0,
-            'is_sync': False
-        }
-        logger.debug('Sent shutdown python request to blockchain.')
-        utils.util.http_client_post(blockchain_server_url, body_data)
 
 
 def fetch_time(uuid, epochs):
@@ -456,7 +399,10 @@ def my_route(app):
             elif message == "fetch_time":
                 detail = fetch_time(data.get("uuid"), data.get("epochs"))
             elif message == "shutdown_python":
-                threading.Thread(target=shutdown_count, args=()).start()
+                threading.Thread(target=utils.util.shutdown_count, args=(
+                    data.get("uuid"), data.get("from_ip"), fed_listen_port, args.num_users)).start()
+            elif message == "shutdown":
+                threading.Thread(target=utils.util.my_exit, args=(args.exit_sleep, )).start()
             response = {"status": status, "detail": detail}
             return response
 
