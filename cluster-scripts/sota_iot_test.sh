@@ -38,7 +38,7 @@ function arrangeOutput(){
 
 function waitFinish() {
     fileName=$1
-    sleep 1000
+    sleep 1500
 }
 
 
