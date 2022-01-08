@@ -68,6 +68,8 @@ function main() {
             waitFinish "[f]ed_befl.py"
             # gather output, move to the right directory
             arrangeOutput ${model} ${dataset} "fed_befl"
+            # clean
+            clean
             echo "[`date`] ## fed_befl.py done ##"
         fi
 
@@ -88,6 +90,8 @@ function main() {
             waitFinish "[f]ed_asofed.py"
             # gather output, move to the right directory
             arrangeOutput ${model} ${dataset} "fed_asofed"
+            # clean
+            clean
             echo "[`date`] ## fed_asofed done ##"
         fi
 
