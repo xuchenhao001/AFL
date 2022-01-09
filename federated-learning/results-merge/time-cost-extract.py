@@ -35,11 +35,12 @@ def calculate_files_mean(experiment_path):
 
 
 def extract_time_data():
-    exp_node_number = "iot-1-network"
-    model_name = "mlp"
+    exp_node_number = "iot-2-v1"
+    model_name = "cnn"
     dataset_name = "fashion_mnist"
 
-    experiment_names = ["fed_async", "fed_avg", "fed_localA", "fed_sync", "local_train"]
+    # experiment_names = ["fed_async", "fed_avg", "fed_localA", "fed_sync", "local_train"]
+    experiment_names = ["fed_asofed", "fed_befl"]
 
     experiment_results = {}
     for path, dirs, files in os.walk("./output"):

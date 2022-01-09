@@ -35,11 +35,12 @@ def calculate_files_mean(experiment_path):
 
 
 def extract_time_histogram_data():
-    exp_node_number = "iot-2-network"
+    exp_node_number = "iot-2-v1"
     model_name = "cnn"
     dataset_name = "cifar"
 
-    experiment_names = ["fed_async", "fed_avg", "fed_localA", "fed_sync", "local_train"]
+    # experiment_names = ["fed_async", "fed_avg", "fed_localA", "fed_sync", "local_train"]
+    experiment_names = ["fed_asofed", "fed_befl"]
 
     for path, dirs, files in os.walk("./output"):
         if path.endswith(model_name + "-" + dataset_name) and exp_node_number in path:

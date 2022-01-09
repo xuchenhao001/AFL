@@ -8,9 +8,11 @@ fed_avg = [23.96, 0.23, 0.05, 58.79]
 fed_localA = [48.84, 0.21, 0.01, 103.16]
 fed_sync = [23.91, 0.24, 2.52, 57.19]
 local_train = [24.15, 0.2, 0.0, 24.36]
+fed_asofed = [27.62, 0.23, 0.06, 28.85]
+fed_befl = [28.99, 0.24, 4.55, 33.08]
 
 save_path = None
 if len(sys.argv) == 3 and sys.argv[1] and sys.argv[1] == "save":
     save_path = sys.argv[2]
 
-plot_time_historgram("", fed_async, fed_avg, fed_sync, fed_localA, local_train, save_path, plot_size="L")
+plot_time_historgram("", fed_async, fed_avg, fed_sync, fed_localA, local_train, fed_asofed, fed_befl, save_path, plot_size="L")
