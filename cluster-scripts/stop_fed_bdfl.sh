@@ -5,7 +5,7 @@ source ../fabric-network/network.config
 for i in "${!PeerAddress[@]}"; do
   addrIN=(${PeerAddress[i]//:/ })
   
-  ./stop_core.sh ${HostUser} ${addrIN[0]} "fed_befl"
+  ./stop_core.sh ${HostUser} ${addrIN[0]} "fed_bdfl"
 done
 
 

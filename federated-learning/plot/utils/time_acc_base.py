@@ -44,7 +44,7 @@ def get_font_settings(size):
     return font_factory
 
 
-def plot_time_acc(title, scale, xrange, fed_async, fed_avg, fed_sync, fed_localA, local_train, fed_asofed, fed_befl,
+def plot_time_acc(title, scale, xrange, fed_async, fed_avg, fed_sync, fed_localA, local_train, fed_asofed, fed_bdfl,
                   save_path=None, is_acc=True, plot_size="L"):
     font_settings = get_font_settings(plot_size)
     x = range(len(fed_async))
@@ -53,12 +53,12 @@ def plot_time_acc(title, scale, xrange, fed_async, fed_avg, fed_sync, fed_localA
     fig, axes = plt.subplots()
 
     axes.plot(x, fed_async, label="DBAFL", linewidth=3, zorder=10, marker='o', markevery=5, markersize=8, mfc='none')
-    axes.plot(x, fed_sync, label="BSFL", marker='D', markevery=5, markersize=8, mfc='none', alpha=0.6)
-    axes.plot(x, fed_asofed, label="ASOFED", marker='v', markevery=5, markersize=8, mfc='none', alpha=0.6)
-    axes.plot(x, fed_befl, label="BEFL", marker='>', markevery=5, markersize=8, mfc='none', alpha=0.6)
-    axes.plot(x, fed_localA, label="APFL", marker='x', markevery=5, markersize=8, mfc='none', alpha=0.6)
-    axes.plot(x, fed_avg, label="FedAVG", marker='|', markevery=5, markersize=8, mfc='none', alpha=0.6)
-    axes.plot(x, local_train, label="Local", marker='<', markevery=5, markersize=8, mfc='none', alpha=0.6)
+    axes.plot(x, fed_sync, label="BSFL", marker='D', markevery=5, markersize=8, mfc='none', alpha=0.8)
+    axes.plot(x, fed_asofed, label="ASOFED", marker='v', markevery=5, markersize=8, mfc='none', alpha=0.8)
+    axes.plot(x, fed_bdfl, label="BDFL", marker='>', markevery=5, markersize=8, mfc='none', alpha=0.8)
+    axes.plot(x, fed_localA, label="APFL", marker='x', markevery=5, markersize=8, mfc='none', alpha=0.8)
+    axes.plot(x, fed_avg, label="FedAVG", marker='|', markevery=5, markersize=8, mfc='none', alpha=0.8)
+    axes.plot(x, local_train, label="Local", marker='<', markevery=5, markersize=8, mfc='none', alpha=0.8)
 
     axes.set_xlabel("Running Time (seconds)", **font_settings.get("cs_xy_label_font"))
     if is_acc:
@@ -88,9 +88,9 @@ def plot_static_time_acc(title, scale, xrange, fed_async, fed_async_f05, fed_asy
     fig, axes = plt.subplots()
 
     axes.plot(x, fed_async, label="Dynamic", linewidth=3, zorder=10, marker='o', markevery=5, markersize=8, mfc='none')
-    axes.plot(x, fed_async_f05, label=r'$\epsilon$ = 0.5', marker='D', markevery=5, markersize=8, mfc='none', alpha=0.6)
-    axes.plot(x, fed_async_f10, label=r'$\epsilon$ = 1.0', marker='v', markevery=5, markersize=8, mfc='none', alpha=0.6)
-    axes.plot(x, fed_async_f15, label=r'$\epsilon$ = 1.5', marker='>', markevery=5, markersize=8, mfc='none', alpha=0.6)
+    axes.plot(x, fed_async_f05, label=r'$\epsilon$ = 0.5', marker='D', markevery=5, markersize=8, mfc='none', alpha=0.8)
+    axes.plot(x, fed_async_f10, label=r'$\epsilon$ = 1.0', marker='v', markevery=5, markersize=8, mfc='none', alpha=0.8)
+    axes.plot(x, fed_async_f15, label=r'$\epsilon$ = 1.5', marker='>', markevery=5, markersize=8, mfc='none', alpha=0.8)
 
     axes.set_xlabel("Running Time (seconds)", **font_settings.get("cs_xy_label_font"))
     if is_acc:
@@ -111,19 +111,19 @@ def plot_static_time_acc(title, scale, xrange, fed_async, fed_async_f05, fed_asy
         plt.show()
 
 
-def plot_time_cost(title, yrange, fed_async, fed_avg, fed_sync, fed_localA, local_train, fed_asofed, fed_befl, save_path=None, plot_size="L"):
+def plot_time_cost(title, yrange, fed_async, fed_avg, fed_sync, fed_localA, local_train, fed_asofed, fed_bdfl, save_path=None, plot_size="L"):
     font_settings = get_font_settings(plot_size)
     x = range(1, len(fed_async)+1)
 
     fig, axes = plt.subplots()
 
     axes.plot(x, fed_async, label="DBAFL", linewidth=3, zorder=10, marker='o', markevery=5, markersize=8, mfc='none')
-    axes.plot(x, fed_sync, label="BSFL", marker='D', markevery=5, markersize=8, mfc='none', alpha=0.6)
-    axes.plot(x, fed_asofed, label="ASOFED", marker='v', markevery=5, markersize=8, mfc='none', alpha=0.6)
-    axes.plot(x, fed_befl, label="BEFL", marker='>', markevery=5, markersize=8, mfc='none', alpha=0.6)
-    axes.plot(x, fed_localA, label="APFL", marker='x', markevery=5, markersize=8, mfc='none', alpha=0.6)
-    axes.plot(x, fed_avg, label="FedAVG", marker='|', markevery=5, markersize=8, mfc='none', alpha=0.6)
-    axes.plot(x, local_train, label="Local", marker='<', markevery=5, markersize=8, mfc='none', alpha=0.6)
+    axes.plot(x, fed_sync, label="BSFL", marker='D', markevery=5, markersize=8, mfc='none', alpha=0.8)
+    axes.plot(x, fed_asofed, label="ASOFED", marker='v', markevery=5, markersize=8, mfc='none', alpha=0.8)
+    axes.plot(x, fed_bdfl, label="BDFL", marker='>', markevery=5, markersize=8, mfc='none', alpha=0.8)
+    axes.plot(x, fed_localA, label="APFL", marker='x', markevery=5, markersize=8, mfc='none', alpha=0.8)
+    axes.plot(x, fed_avg, label="FedAVG", marker='|', markevery=5, markersize=8, mfc='none', alpha=0.8)
+    axes.plot(x, local_train, label="Local", marker='<', markevery=5, markersize=8, mfc='none', alpha=0.8)
 
     axes.set_xlabel("Training Round", **font_settings.get("cs_xy_label_font"))
     axes.set_ylabel("Average Time (s)", **font_settings.get("cs_xy_label_font"))
@@ -141,7 +141,7 @@ def plot_time_cost(title, yrange, fed_async, fed_avg, fed_sync, fed_localA, loca
         plt.show()
 
 
-def plot_time_historgram(title, fed_async, fed_avg, fed_sync, fed_localA, local_train, fed_asofed, fed_befl, save_path=None, plot_size="L"):
+def plot_time_historgram(title, fed_async, fed_avg, fed_sync, fed_localA, local_train, fed_asofed, fed_bdfl, save_path=None, plot_size="L"):
     font_settings = get_font_settings(plot_size)
     x = ["Train", "Test", "Communication", "Round"]
 
@@ -152,7 +152,7 @@ def plot_time_historgram(title, fed_async, fed_avg, fed_sync, fed_localA, local_
     axes.bar([(p - width * 3) for p in range(len(x))], height=fed_async, width=width, label="DBAFL", hatch='x')
     axes.bar([(p - width * 2) for p in range(len(x))], height=fed_sync, width=width, label="BSFL", hatch='o')
     axes.bar([p - width for p in range(len(x))], height=fed_asofed, width=width, label="ASOFED", hatch='+')
-    axes.bar(range(len(x)), height=fed_befl, width=width, label="BEFL", hatch='*')
+    axes.bar(range(len(x)), height=fed_bdfl, width=width, label="BDFL", hatch='*')
     axes.bar([p + width for p in range(len(x))], height=fed_localA, width=width, label="APFL", hatch='/')
     axes.bar([(p + width * 2) for p in range(len(x))], height=fed_avg, width=width, label="FedAVG", hatch='-')
     axes.bar([(p + width * 3) for p in range(len(x))], height=local_train, width=width, label="Local", hatch='.')

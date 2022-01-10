@@ -12,7 +12,7 @@ function killOldProcesses() {
     ./stop_fed_avg.sh
     ./stop_fed_localA.sh
     ./stop_local_train.sh
-    ./stop_fed_befl.sh
+    ./stop_fed_bdfl.sh
     ./stop_fed_asofed.sh
 }
 
@@ -51,26 +51,26 @@ function main() {
         fade=${FADE}
         echo "[`date`] ALL_NODE_TEST UNDER: ${model} - ${dataset}"
 
-        # fed_befl
-        if [[ ! -d "${model}-${dataset}/fed_befl" ]]; then
-            echo "[`date`] ## fed_befl start ##"
+        # fed_bdfl
+        if [[ ! -d "${model}-${dataset}/fed_bdfl" ]]; then
+            echo "[`date`] ## fed_bdfl start ##"
             # clean
             clean
             # run test
             for i in "${!PeerAddress[@]}"; do
               addrIN=(${PeerAddress[i]//:/ })
               dataset_train_size=${TrainDataSize[i]}
-              ./restart_core.sh ${HostUser} ${addrIN[0]} "fed_befl" "$model" "$dataset" "$is_iid" "$dataset_train_size"
+              ./restart_core.sh ${HostUser} ${addrIN[0]} "fed_bdfl" "$model" "$dataset" "$is_iid" "$dataset_train_size"
             done
             sleep 300
             curl -i -X GET 'http://localhost:8888/messages'
             # detect test finish or not
-            waitFinish "[f]ed_befl.py"
+            waitFinish "[f]ed_bdfl.py"
             # gather output, move to the right directory
-            arrangeOutput ${model} ${dataset} "fed_befl"
+            arrangeOutput ${model} ${dataset} "fed_bdfl"
             # clean
             clean
-            echo "[`date`] ## fed_befl.py done ##"
+            echo "[`date`] ## fed_bdfl done ##"
         fi
 
         # fed_asofed
