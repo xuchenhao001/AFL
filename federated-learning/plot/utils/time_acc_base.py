@@ -79,6 +79,37 @@ def plot_time_acc(title, scale, xrange, fed_async, fed_avg, fed_sync, fed_localA
         plt.show()
 
 
+def plot_time_acc_nodes(title, x_range, dbafl, bsfl, aso_fed, bdfl, apfl, fed_avg, local_train, save_path=None,
+                        is_acc=True, plot_size="L"):
+    font_settings = get_font_settings(plot_size)
+    x = x_range
+
+    fig, axes = plt.subplots()
+
+    axes.plot(x, dbafl, label="DBAFL", linewidth=3, zorder=10, marker='o', markersize=8, mfc='none')
+    axes.plot(x, bsfl, label="BSFL", marker='D', markersize=8, mfc='none', alpha=0.8)
+    axes.plot(x, aso_fed, label="ASOFED", marker='v', markersize=8, mfc='none', alpha=0.8)
+    axes.plot(x, bdfl, label="BDFL", marker='>', markersize=8, mfc='none', alpha=0.8)
+    axes.plot(x, apfl, label="APFL", marker='x', markersize=8, mfc='none', alpha=0.8)
+    axes.plot(x, fed_avg, label="FedAVG", marker='|', markersize=8, mfc='none', alpha=0.8)
+    axes.plot(x, local_train, label="Local", marker='<', markersize=8, mfc='none', alpha=0.8)
+
+    axes.set_xlabel("The Number of Nodes", **font_settings.get("cs_xy_label_font"))
+    axes.set_ylabel("Average Time (s)", **font_settings.get("cs_xy_label_font"))
+
+    plt.title(title, **font_settings.get("cs_title_font"))
+    plt.xticks(**font_settings.get("cs_xy_ticks_font"))
+    plt.yticks(**font_settings.get("cs_xy_ticks_font"))
+    plt.tight_layout()
+    # plt.xlim(0, xrange)
+    plt.legend(prop=font_settings.get("legend_font"), loc='upper left').set_zorder(11)
+    plt.grid()
+    if save_path:
+        plt.savefig(save_path)
+    else:
+        plt.show()
+
+
 def plot_static_time_acc(title, scale, xrange, fed_async, fed_async_f05, fed_async_f10, fed_async_f15, save_path=None,
                          is_acc=True, plot_size="L"):
     font_settings = get_font_settings(plot_size)
