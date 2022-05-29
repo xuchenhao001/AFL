@@ -174,7 +174,7 @@ def plot_time_cost(title, yrange, fed_async, fed_avg, fed_sync, fed_localA, loca
 
 def plot_time_historgram(title, fed_async, fed_avg, fed_sync, fed_localA, local_train, fed_asofed, fed_bdfl, save_path=None, plot_size="L"):
     font_settings = get_font_settings(plot_size)
-    x = ["Train", "Test", "Communication", "Round"]
+    x = ["Training", "Test", "Communication", "Waiting", "Total"]
 
     fig, axes = plt.subplots()
 
@@ -189,15 +189,16 @@ def plot_time_historgram(title, fed_async, fed_avg, fed_sync, fed_localA, local_
     axes.bar([(p + width * 3) for p in range(len(x))], height=local_train, width=width, label="Local", hatch='.')
 
     plt.xticks(range(len(x)), x)
-    axes.set_xlabel("Steps in the Training Round", **font_settings.get("cs_xy_label_font"))
+    axes.set_xlabel("Stage in Training Rounds", **font_settings.get("cs_xy_label_font"))
     axes.set_ylabel("Average Time (s)", **font_settings.get("cs_xy_label_font"))
 
     plt.title(title, **font_settings.get("cs_title_font"))
-    plt.xticks(**font_settings.get("cs_xy_ticks_font"))
+    plt.xticks(**{'fontproperties': font_manager.FontProperties(family='Times New Roman', style='normal', size=16)})
     plt.yticks(**font_settings.get("cs_xy_ticks_font"))
     plt.tight_layout()
     plt.legend(prop=font_settings.get("legend_font"), loc='upper left').set_zorder(11)
     plt.grid()
+    fig.set_size_inches(8, 4.8)
     if save_path:
         plt.savefig(save_path)
     else:
