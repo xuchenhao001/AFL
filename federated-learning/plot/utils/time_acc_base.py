@@ -174,7 +174,7 @@ def plot_time_cost(title, yrange, fed_async, fed_avg, fed_sync, fed_localA, loca
 
 def plot_time_historgram(title, fed_async, fed_avg, fed_sync, fed_localA, local_train, fed_asofed, fed_bdfl, save_path=None, plot_size="L"):
     font_settings = get_font_settings(plot_size)
-    x = ["Training", "Test", "Communication", "Waiting", "Total"]
+    x = ["Training", "Testing", "Communication", "Waiting", "Total"]
 
     fig, axes = plt.subplots()
 
