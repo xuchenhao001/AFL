@@ -1,0 +1,34 @@
+version: '2'
+
+volumes:
+  peer0.org${ORGNUM}.example.com:
+
+networks:
+  test:
+
+services:
+  peer0.org${ORGNUM}.example.com:
+    container_name: peer0.org${ORGNUM}.example.com
+    extends:
+      file: ../docker/peer-base.yaml
+      service: peer-base
+    environment:
+      - CORE_PEER_ID=peer0.org${ORGNUM}.example.com
+      - CORE_PEER_ADDRESS=${ADDR}:${PORT}
+      - CORE_PEER_LISTENADDRESS=0.0.0.0:${PORT}
+      - CORE_PEER_CHAINCODEADDRESS=peer0.org${ORGNUM}.example.com:${CCPORT}
+      - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:${CCPORT}
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=${ADDR}:${PORT}
+      - CORE_PEER_GOSSIP_BOOTSTRAP=${ADDR}:${PORT}
+      - CORE_PEER_LOCALMSPID=Org${ORGNUM}MSP
+    volumes:
+        - /var/run/:/host/var/run/
+        - ./peerOrganizations/org${ORGNUM}.example.com/peers/peer0.org${ORGNUM}.example.com/msp:/etc/hyperledger/fabric/msp
+        - ./peerOrganizations/org${ORGNUM}.example.com/peers/peer0.org${ORGNUM}.example.com/tls:/etc/hyperledger/fabric/tls
+        - peer0.org${ORGNUM}.example.com:/var/hyperledger/production
+    ports:
+      - ${PORT}:${PORT}
+    networks:
+      - test
+
+

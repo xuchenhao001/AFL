@@ -1,0 +1,11 @@
+OrdererOrgs:
+  - Name: Orderer
+    Domain: example.com
+    EnableNodeOUs: true
+    Specs:
+      - Hostname: orderer
+        SANS:
+          - localhost
+          - ORDERERADDR
+PeerOrgs:
+PEERSDETAIL

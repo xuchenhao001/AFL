@@ -1,0 +1,14 @@
+.DS_Store
+.idea
+/data
+node_modules
+vendor/
+config/
+wallet/
+fabric-network/bin/
+result-record_*
+output/
+*.log
+raft/hraftd
+networkCache.tar.gz
+figures/
