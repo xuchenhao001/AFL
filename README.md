@@ -173,9 +173,9 @@ The parameters for the training are at `./AFL/federated-learning/utils/options.p
 ```bash
 cd federated-learning/
 rm -f result-*
-python3 fed_server.py
+python3 fed_avg.py
 # Or start in background
-nohup python3 -u fed_server.py > fed_server.log 2>&1 &
+nohup python3 -u fed_avg.py > fed_avg.log 2>&1 &
 ```
 
 Trigger training to start:
